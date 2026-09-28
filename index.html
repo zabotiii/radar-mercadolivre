@@ -1,767 +1,1678 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Radar MercadoLivre V2</title>
+  <meta charset="UTF-8">
 
-<style>
-:root{
-  --bg:#07110d;
-  --p:#0d1b15;
-  --l:#20362c;
-  --t:#f4f7f5;
-  --m:#9eaea6;
-  --g:#21c77a;
-  --y:#ffd21a
-}
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-*{
-  box-sizing:border-box
-}
+  <title>Radar MercadoLivre</title>
 
-body{
-  margin:0;
-  background:radial-gradient(circle at 15% 0,#123b28,#07110d 40%,#050b08);
-  color:var(--t);
-  font:15px Arial,sans-serif
-}
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-.w{
-  max-width:1180px;
-  margin:auto;
-  padding:25px 18px
-}
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at top, #fff9d8 0%, #f4f5f7 45%, #eef0f3 100%);
+      color: #222;
+    }
 
-.top{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:15px;
-  margin-bottom:20px
-}
+    button,
+    input {
+      font-family: inherit;
+    }
 
-.brand{
-  display:flex;
-  align-items:center;
-  gap:12px
-}
+    .topbar {
+      background: #ffe600;
+      padding: 16px 22px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.12);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
 
-.brand img{
-  width:58px;
-  height:42px;
-  object-fit:contain;
-  border-radius:8px
-}
+    .topbar-inner {
+      max-width: 1200px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
 
-.brand h1{
-  margin:0;
-  font-size:23px
-}
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 22px;
+    }
 
-.brand p{
-  margin:3px 0;
-  color:var(--m);
-  font-size:12px
-}
+    .brand img {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: white;
+      padding: 4px;
+    }
 
-.card{
-  background:#0d1b15eF;
-  border:1px solid var(--l);
-  border-radius:17px;
-  padding:19px;
-  box-shadow:0 12px 40px #0004
-}
+    .connection {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
-.hero{
-  display:grid;
-  grid-template-columns:1.2fr .8fr;
-  gap:16px
-}
+    .status {
+      padding: 8px 13px;
+      border-radius: 20px;
+      background: rgba(255,255,255,.7);
+      font-size: 13px;
+      font-weight: 700;
+    }
 
-.hero h2{
-  margin:0 0 8px;
-  font-size:27px
-}
+    .status.connected {
+      color: #16823b;
+    }
 
-.muted,.small{
-  color:var(--m);
-  line-height:1.5
-}
+    .status.disconnected {
+      color: #a33;
+    }
 
-.status{
-  margin-top:14px;
-  font-weight:bold
-}
+    .btn-small {
+      border: 0;
+      border-radius: 9px;
+      padding: 9px 13px;
+      cursor: pointer;
+      font-weight: 700;
+      background: white;
+    }
 
-.dot{
-  display:inline-block;
-  width:10px;
-  height:10px;
-  border-radius:50%;
-  background:#777;
-  margin-right:8px
-}
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 30px 18px 60px;
+    }
 
-.ok{
-  background:var(--g);
-  box-shadow:0 0 12px #21c77a
-}
+    .hero {
+      text-align: center;
+      margin-bottom: 25px;
+    }
 
-.stats{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:9px
-}
+    .hero h1 {
+      margin: 0;
+      font-size: 36px;
+      font-weight: 900;
+      color: #222;
+    }
 
-.stat{
-  background:#0a1611;
-  border:1px solid var(--l);
-  border-radius:10px;
-  padding:12px
-}
+    .hero p {
+      margin: 10px auto 0;
+      max-width: 700px;
+      color: #666;
+      font-size: 16px;
+    }
 
-.stat b{
-  display:block;
-  font-size:21px
-}
+    .search-box {
+      background: white;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 5px 25px rgba(0,0,0,.08);
+      margin-bottom: 20px;
+    }
 
-.stat span{
-  font-size:11px;
-  color:var(--m)
-}
+    .search-row {
+      display: flex;
+      gap: 10px;
+    }
 
-button{
-  border:0;
-  border-radius:9px;
-  padding:11px 15px;
-  font-weight:800;
-  cursor:pointer
-}
+    .search-row input {
+      flex: 1;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      padding: 15px 17px;
+      font-size: 17px;
+      outline: none;
+    }
 
-.connect{
-  background:var(--y);
-  color:#171300
-}
+    .search-row input:focus {
+      border-color: #ffe600;
+    }
 
-.search{
-  display:flex;
-  gap:9px;
-  margin:14px 0
-}
+    .search-button {
+      border: 0;
+      border-radius: 12px;
+      padding: 0 25px;
+      background: #ffe600;
+      font-weight: 900;
+      cursor: pointer;
+      font-size: 16px;
+    }
 
-.search input{
-  flex:1;
-  background:#09150f;
-  border:1px solid #294438;
-  color:#fff;
-  border-radius:9px;
-  padding:12px
-}
+    .search-button:hover {
+      filter: brightness(.96);
+    }
 
-.search button{
-  background:var(--g)
-}
+    .affiliate-box {
+      margin-top: 15px;
+      background: #f7f8fa;
+      border: 1px solid #e3e5e8;
+      border-radius: 13px;
+      padding: 15px;
+    }
 
-.notice{
-  display:none;
-  margin:12px 0;
-  padding:11px;
-  border-radius:9px;
-  background:#241f08;
-  border:1px solid #66580b
-}
+    .affiliate-title {
+      font-weight: 800;
+      margin-bottom: 7px;
+    }
 
-.notice.show{
-  display:block
-}
+    .affiliate-help {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 10px;
+    }
 
-.grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:13px
-}
+    .affiliate-row {
+      display: flex;
+      gap: 10px;
+    }
 
-.product{
-  background:#0b1812;
-  border:1px solid var(--l);
-  border-radius:14px;
-  overflow:hidden
-}
+    .affiliate-row input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 9px;
+      outline: none;
+      font-size: 14px;
+    }
 
-.product img{
-  width:100%;
-  height:180px;
-  object-fit:contain;
-  background:#fff
-}
+    .affiliate-row button {
+      border: 0;
+      border-radius: 9px;
+      padding: 0 17px;
+      background: #222;
+      color: white;
+      font-weight: 800;
+      cursor: pointer;
+    }
 
-.body{
-  padding:13px
-}
+    .notice {
+      display: none;
+      margin-top: 15px;
+      padding: 13px 15px;
+      border-radius: 10px;
+      background: #fff3cd;
+      color: #765c00;
+      font-size: 14px;
+    }
 
-.title{
-  font-weight:bold;
-  min-height:40px
-}
+    .notice.show {
+      display: block;
+    }
 
-.price{
-  font-size:21px;
-  font-weight:900;
-  margin:8px 0
-}
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 25px 0 15px;
+      gap: 10px;
+    }
 
-.meta{
-  color:var(--m);
-  font-size:12px;
-  line-height:1.5
-}
+    .results-header h2 {
+      margin: 0;
+      font-size: 23px;
+    }
 
-.actions{
-  display:flex;
-  gap:7px;
-  margin-top:10px
-}
+    .results-count {
+      color: #666;
+      font-size: 14px;
+    }
 
-.actions button{
-  flex:1;
-  padding:9px
-}
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 30px;
+      font-weight: 700;
+      color: #555;
+    }
 
-.copy{
-  background:#1b3026;
-  color:#fff
-}
+    .loading.show {
+      display: block;
+    }
 
-.open{
-  background:var(--y);
-  color:#171300
-}
+    .error {
+      display: none;
+      padding: 15px;
+      border-radius: 12px;
+      background: #ffe3e3;
+      color: #9d2222;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
 
-.empty{
-  text-align:center;
-  padding:35px;
-  color:var(--m);
-  border:1px dashed #2b4638;
-  border-radius:12px;
-  grid-column:1/-1
-}
+    .error.show {
+      display: block;
+    }
 
-.foot{
-  margin-top:18px;
-  color:#71837a;
-  font-size:11px
-}
+    .empty {
+      display: none;
+      text-align: center;
+      background: white;
+      padding: 35px;
+      border-radius: 15px;
+      color: #666;
+    }
 
-@media(max-width:800px){
-  .hero{
-    grid-template-columns:1fr
-  }
+    .empty.show {
+      display: block;
+    }
 
-  .grid{
-    grid-template-columns:1fr 1fr
-  }
-}
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
 
-@media(max-width:520px){
-  .top{
-    flex-direction:column;
-    align-items:flex-start
-  }
+    .card {
+      background: white;
+      border-radius: 17px;
+      overflow: hidden;
+      box-shadow: 0 5px 22px rgba(0,0,0,.08);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
 
-  .grid{
-    grid-template-columns:1fr
-  }
-}
-</style>
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 9px 28px rgba(0,0,0,.13);
+    }
+
+    .image-area {
+      height: 235px;
+      background: #f7f7f7;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .product-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 15px;
+    }
+
+    .deal-badge {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      background: #39a852;
+      color: white;
+      border-radius: 20px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+
+    .score-badge {
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      background: #222;
+      color: #ffe600;
+      border-radius: 20px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .card-content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .product-title {
+      font-size: 17px;
+      line-height: 1.35;
+      font-weight: 800;
+      min-height: 69px;
+      margin-bottom: 10px;
+    }
+
+    .price-old {
+      color: #888;
+      text-decoration: line-through;
+      font-size: 13px;
+      min-height: 18px;
+    }
+
+    .price {
+      font-size: 25px;
+      font-weight: 900;
+      margin-top: 2px;
+      color: #222;
+    }
+
+    .price-range {
+      font-size: 14px;
+      color: #555;
+      margin-top: 5px;
+    }
+
+    .no-price {
+      color: #888;
+      font-size: 14px;
+      margin-top: 7px;
+    }
+
+    .info-list {
+      margin-top: 13px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: #f1f2f4;
+      font-size: 12px;
+      color: #555;
+      font-weight: 700;
+    }
+
+    .tag.winner {
+      background: #e5f7e9;
+      color: #16823b;
+    }
+
+    .tag.shipping {
+      background: #e6f3ff;
+      color: #1169a6;
+    }
+
+    .tag.discount {
+      background: #ffe8e8;
+      color: #c42626;
+    }
+
+    .score-area {
+      margin-top: 14px;
+      padding: 11px;
+      border-radius: 10px;
+      background: #f7f7f7;
+    }
+
+    .score-title {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 7px;
+    }
+
+    .score-bar {
+      width: 100%;
+      height: 7px;
+      background: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .score-fill {
+      height: 100%;
+      background: #ffe600;
+      border-radius: 10px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 15px;
+    }
+
+    .action {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 8px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .action.primary {
+      background: #ffe600;
+      color: #222;
+    }
+
+    .action.dark {
+      background: #222;
+      color: white;
+    }
+
+    .action.green {
+      background: #39a852;
+      color: white;
+      grid-column: span 2;
+    }
+
+    .action:hover {
+      filter: brightness(.96);
+    }
+
+    .footer {
+      text-align: center;
+      color: #888;
+      font-size: 12px;
+      margin-top: 40px;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 25px;
+      transform: translateX(-50%) translateY(20px);
+      background: #222;
+      color: white;
+      padding: 13px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: .25s;
+      z-index: 100;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 650px) {
+      .topbar-inner {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .connection {
+        justify-content: space-between;
+      }
+
+      .hero h1 {
+        font-size: 29px;
+      }
+
+      .search-row {
+        flex-direction: column;
+      }
+
+      .search-button {
+        padding: 14px;
+      }
+
+      .affiliate-row {
+        flex-direction: column;
+      }
+
+      .affiliate-row button {
+        padding: 12px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .image-area {
+        height: 260px;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="w">
+  <header class="topbar">
+    <div class="topbar-inner">
 
-<header class="top">
+      <div class="brand">
+        <img src="/logo.png" alt="Radar MercadoLivre">
+        <span>Radar MercadoLivre</span>
+      </div>
 
-<div class="brand">
+      <div class="connection">
+        <div id="status" class="status disconnected">
+          Mercado Livre não conectado
+        </div>
 
-<img src="/logo.png">
+        <button
+          id="connectBtn"
+          class="btn-small"
+          onclick="connectMercadoLivre()"
+        >
+          Conectar
+        </button>
 
-<div>
-<h1>Radar MercadoLivre</h1>
-<p>V2 • OAuth + busca de produtos</p>
-</div>
+        <button
+          id="logoutBtn"
+          class="btn-small"
+          style="display:none"
+          onclick="logoutMercadoLivre()"
+        >
+          Sair
+        </button>
+      </div>
 
-</div>
-
-<button
-id="btn"
-class="connect"
-onclick="location.href='/api/ml/start'">
-Conectar ao Mercado Livre
-</button>
-
-</header>
-
-
-<section class="hero">
-
-<div class="card">
-
-<h2>Radar de oportunidades</h2>
-
-<div class="muted">
-Conecte sua conta, pesquise produtos e transforme cada oportunidade em conteúdo para divulgação.
-</div>
-
-<div class="status">
-
-<span id="dot" class="dot"></span>
-
-<span id="st">
-Mercado Livre não conectado
-</span>
-
-</div>
-
-<div id="usr" class="small"></div>
-
-</div>
+    </div>
+  </header>
 
 
-<div class="card">
+  <main class="container">
 
-<div class="stats">
+    <section class="hero">
 
-<div class="stat">
-<b id="cnt">0</b>
-<span>resultados</span>
-</div>
+      <h1>🔥 Caçador de Promoções</h1>
 
-<div class="stat">
-<b>MLB</b>
-<span>Brasil</span>
-</div>
+      <p>
+        Encontre oportunidades no Mercado Livre,
+        analise os produtos e prepare seu conteúdo
+        para divulgação como afiliado.
+      </p>
 
-<div class="stat">
-<b>V2</b>
-<span>MVP</span>
-</div>
-
-</div>
-
-<p class="small">
-A Secret Key fica no backend da Vercel e não no navegador.
-</p>
-
-</div>
-
-</section>
+    </section>
 
 
-<div id="note" class="notice"></div>
+    <section class="search-box">
+
+      <div class="search-row">
+
+        <input
+          id="searchInput"
+          type="text"
+          placeholder="Ex.: air fryer, tênis, celular, cafeteira..."
+          autocomplete="off"
+        >
+
+        <button
+          class="search-button"
+          onclick="searchProducts()"
+        >
+          🔎 BUSCAR OFERTAS
+        </button>
+
+      </div>
 
 
-<section class="card" style="margin-top:16px">
+      <div class="affiliate-box">
 
-<h3>Buscar produtos</h3>
+        <div class="affiliate-title">
+          🔗 Seu link de afiliado
+        </div>
 
-<div class="search">
+        <div class="affiliate-help">
+          Cole aqui um link de afiliado gerado oficialmente
+          pela Central/Gerador de Links do Mercado Livre.
+          O Radar usará esse link nos textos copiados.
+        </div>
 
-<input
-id="q"
-placeholder="Ex.: air fryer, smartwatch, tênis..."
-onkeydown="if(event.key==='Enter')go()">
+        <div class="affiliate-row">
 
-<button onclick="go()">
-Pesquisar
-</button>
+          <input
+            id="affiliateLink"
+            type="text"
+            placeholder="Cole aqui seu link de afiliado..."
+          >
 
-</div>
+          <button onclick="saveAffiliateLink()">
+            SALVAR
+          </button>
 
+        </div>
 
-<div id="res" class="grid">
-
-<div class="empty">
-Conecte o Mercado Livre e pesquise um produto.
-</div>
-
-</div>
-
-</section>
+      </div>
 
 
-<div class="foot">
-MVP V2. O fluxo usa OAuth 2.0 e consulta /users/me.
-A geração de link de afiliado ainda não foi ativada porque precisamos usar o mecanismo oficial específico do programa de afiliados.
-</div>
+      <div id="notice" class="notice"></div>
 
-</div>
+    </section>
+
+
+    <div id="error" class="error"></div>
+
+
+    <div id="loading" class="loading">
+      🔎 Procurando oportunidades...
+    </div>
+
+
+    <section>
+
+      <div class="results-header">
+
+        <h2>
+          🔥 Melhores oportunidades
+        </h2>
+
+        <div
+          id="resultsCount"
+          class="results-count"
+        >
+          Nenhuma busca realizada
+        </div>
+
+      </div>
+
+
+      <div
+        id="empty"
+        class="empty"
+      >
+        Digite um produto acima para começar a procurar oportunidades.
+      </div>
+
+
+      <div
+        id="grid"
+        class="grid"
+      ></div>
+
+    </section>
+
+
+    <div class="footer">
+      Radar MercadoLivre • Ferramenta de análise para afiliados
+    </div>
+
+  </main>
+
+
+  <div
+    id="toast"
+    class="toast"
+  ></div>
 
 
 <script>
 
-const $ = x => document.getElementById(x);
+  let currentProducts = [];
+
+  let affiliateLink = "";
 
 
-function note(x){
+  // =========================================================
+  // UTILIDADES
+  // =========================================================
 
-  $('note').textContent = x;
+  function escapeHtml(value) {
 
-  $('note').classList.add('show');
-
-}
-
-
-function esc(s){
-
-  return String(s ?? '').replace(
-    /[&<>"']/g,
-    m => ({
-      '&':'&amp;',
-      '<':'&lt;',
-      '>':'&gt;',
-      '"':'&quot;',
-      "'":'&#39;'
-    }[m])
-  );
-
-}
-
-
-function set(u){
-
-  $('dot').className = 'dot ok';
-
-  $('st').textContent = 'Mercado Livre conectado';
-
-  $('btn').textContent = 'Desconectar';
-
-  $('btn').onclick = logout;
-
-  $('usr').textContent =
-    u?.nickname
-      ? `Conta: ${u.nickname} • ID: ${u.id}`
-      : '';
-
-}
-
-
-async function logout(){
-
-  await fetch(
-    '/api/ml/logout',
-    {
-      method:'POST'
+    if (value === null || value === undefined) {
+      return "";
     }
-  );
 
-  location.reload();
-
-}
-
-
-async function go(){
-
-  const q = $('q').value.trim();
-
-  if(!q){
-
-    return note('Digite um termo.');
-
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 
 
-  $('res').innerHTML =
-    '<div class="empty">Buscando...</div>';
+  function formatMoney(value) {
+
+    if (typeof value !== "number") {
+      return null;
+    }
+
+    return value.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL"
+    });
+  }
 
 
-  try{
+  function showToast(message) {
 
-    const r = await fetch(
-      '/api/ml_search?q=' +
-      encodeURIComponent(q)
-    );
+    const toast = document.getElementById("toast");
+
+    toast.textContent = message;
+
+    toast.classList.add("show");
+
+    setTimeout(() => {
+      toast.classList.remove("show");
+    }, 2500);
+  }
 
 
-    const d = await r.json();
+  function showNotice(message) {
+
+    const notice = document.getElementById("notice");
+
+    notice.textContent = message;
+
+    notice.classList.add("show");
+
+    setTimeout(() => {
+      notice.classList.remove("show");
+    }, 5000);
+  }
 
 
-    if(!r.ok){
+  // =========================================================
+  // LINK DE AFILIADO
+  // =========================================================
 
-      throw Error(
-        d.error ||
-        'Erro ao pesquisar produtos.'
+  function loadAffiliateLink() {
+
+    try {
+
+      const saved =
+        localStorage.getItem("radarAffiliateLink");
+
+      if (saved) {
+
+        affiliateLink = saved;
+
+        document.getElementById(
+          "affiliateLink"
+        ).value = saved;
+      }
+
+    } catch (error) {
+
+      console.log(
+        "Não foi possível carregar o link salvo."
       );
 
     }
 
-
-    $('cnt').textContent =
-      d.results.length;
+  }
 
 
-    $('res').innerHTML =
-      d.results.length
+  function saveAffiliateLink() {
 
-      ?
+    const input =
+      document.getElementById("affiliateLink");
 
-      d.results.map(p => {
+    const value =
+      input.value.trim();
 
-        const pr =
-          typeof p.price === 'number'
+    if (!value) {
 
-          ?
+      showNotice(
+        "Cole primeiro seu link oficial de afiliado."
+      );
 
-          p.price.toLocaleString(
-            'pt-BR',
-            {
-              style:'currency',
-              currency:'BRL'
-            }
-          )
-
-          :
-
-          'Preço indisponível';
+      return;
+    }
 
 
-        const vendas =
-          typeof p.sold_quantity === 'number'
+    affiliateLink = value;
 
-          ?
+    try {
 
-          p.sold_quantity
+      localStorage.setItem(
+        "radarAffiliateLink",
+        value
+      );
 
-          :
+    } catch (error) {}
 
-          '—';
-
-
-        const imagem =
-          p.thumbnail ||
-          '';
-
-
-        return `
-
-<article class="product">
-
-<img
-src="${esc(imagem)}"
-onerror="this.style.display='none'">
-
-<div class="body">
-
-<div class="title">
-${esc(p.title)}
-</div>
-
-<div class="price">
-${pr}
-</div>
-
-<div class="meta">
-
-ID:
-${esc(p.id)}
-
-<br>
-
-Vendas informadas:
-${vendas}
-
-<br>
-
-Condição:
-${esc(p.condition || 'Novo')}
-
-</div>
-
-
-<div class="actions">
-
-<button
-class="copy"
-onclick='copy(${JSON.stringify(p).replace(/</g,"\\u003c")})'>
-Gerar conteúdo
-</button>
-
-
-<button
-class="open"
-onclick='window.open(${JSON.stringify(p.permalink || "#")},"_blank")'>
-Abrir
-</button>
-
-</div>
-
-</div>
-
-</article>
-
-`;
-
-      }).join('')
-
-      :
-
-      '<div class="empty">Nenhum produto encontrado.</div>';
-
-
-  }catch(e){
-
-    $('res').innerHTML =
-      '<div class="empty">' +
-      esc(e.message) +
-      '</div>';
+    showToast(
+      "✅ Link de afiliado salvo!"
+    );
 
   }
 
-}
 
+  // =========================================================
+  // CONEXÃO MERCADO LIVRE
+  // =========================================================
 
-function copy(p){
+  async function checkConnection() {
 
-  const pr =
-    typeof p.price === 'number'
+    try {
 
-    ?
+      const response =
+        await fetch("/api/ml/me");
 
-    p.price.toLocaleString(
-      'pt-BR',
-      {
-        style:'currency',
-        currency:'BRL'
+      if (!response.ok) {
+
+        setDisconnected();
+
+        return;
       }
-    )
 
-    :
+      const data =
+        await response.json();
 
-    'Preço indisponível';
+      if (data && data.nickname) {
 
-
-  const t =
-`🔥 OFERTA DO DIA!
-
-${p.title}
-
-💰 ${pr}
-
-🛒 Confira:
-${p.permalink}
-
-⚡ Aproveite enquanto estiver disponível!`;
-
-
-  navigator.clipboard?.writeText(t);
-
-  note('Texto copiado.');
-
-}
-
-
-async function init(){
-
-  const u =
-    new URLSearchParams(
-      location.search
-    );
-
-
-  const code = u.get('code');
-
-  const state = u.get('state');
-
-  const err = u.get('error');
-
-
-  if(err){
-
-    note(
-      'Autorização cancelada ou recusada.'
-    );
-
-  }
-
-
-  if(code){
-
-    note(
-      'Finalizando conexão...'
-    );
-
-
-    try{
-
-      const r =
-        await fetch(
-          '/api/ml/exchange?code=' +
-          encodeURIComponent(code) +
-          '&state=' +
-          encodeURIComponent(state || '')
+        setConnected(
+          data.nickname,
+          data.id
         );
 
+      } else {
 
-      const d =
-        await r.json();
-
-
-      if(!r.ok){
-
-        throw Error(d.error);
+        setDisconnected();
 
       }
 
+    } catch (error) {
 
-      set(d.user);
+      setDisconnected();
 
-      history.replaceState(
-        {},
-        '',
-        location.pathname
+    }
+
+  }
+
+
+  function setConnected(
+    nickname,
+    id
+  ) {
+
+    const status =
+      document.getElementById("status");
+
+    status.textContent =
+      "🟢 Conectado: " + nickname;
+
+    status.className =
+      "status connected";
+
+    document.getElementById(
+      "connectBtn"
+    ).style.display = "none";
+
+    document.getElementById(
+      "logoutBtn"
+    ).style.display = "block";
+
+  }
+
+
+  function setDisconnected() {
+
+    const status =
+      document.getElementById("status");
+
+    status.textContent =
+      "Mercado Livre não conectado";
+
+    status.className =
+      "status disconnected";
+
+    document.getElementById(
+      "connectBtn"
+    ).style.display = "block";
+
+    document.getElementById(
+      "logoutBtn"
+    ).style.display = "none";
+
+  }
+
+
+  async function connectMercadoLivre() {
+
+    try {
+
+      const response =
+        await fetch("/api/ml/start");
+
+      if (!response.ok) {
+
+        throw new Error(
+          "Não foi possível iniciar a conexão."
+        );
+
+      }
+
+      const data =
+        await response.json();
+
+      if (!data.url) {
+
+        throw new Error(
+          "URL de autorização não encontrada."
+        );
+
+      }
+
+      window.location.href =
+        data.url;
+
+    } catch (error) {
+
+      showToast(
+        "❌ " + error.message
       );
 
+    }
 
-    }catch(e){
+  }
 
-      note(e.message);
 
-      history.replaceState(
-        {},
-        '',
-        location.pathname
+  async function logoutMercadoLivre() {
+
+    try {
+
+      await fetch(
+        "/api/ml/logout",
+        {
+          method: "POST"
+        }
+      );
+
+    } catch (error) {}
+
+    setDisconnected();
+
+    showToast(
+      "Você saiu do Mercado Livre."
+    );
+
+  }
+
+
+  // =========================================================
+  // BUSCA
+  // =========================================================
+
+  async function searchProducts() {
+
+    const input =
+      document.getElementById("searchInput");
+
+    const query =
+      input.value.trim();
+
+    const errorBox =
+      document.getElementById("error");
+
+    const loading =
+      document.getElementById("loading");
+
+    const grid =
+      document.getElementById("grid");
+
+    const empty =
+      document.getElementById("empty");
+
+    const resultsCount =
+      document.getElementById("resultsCount");
+
+
+    errorBox.classList.remove("show");
+
+    empty.classList.remove("show");
+
+    grid.innerHTML = "";
+
+
+    if (!query) {
+
+      showToast(
+        "Digite o que você quer procurar."
       );
 
       return;
 
     }
 
+
+    loading.classList.add("show");
+
+    resultsCount.textContent =
+      "Procurando...";
+
+
+    try {
+
+      const response =
+        await fetch(
+          "/api/ml_search?q=" +
+          encodeURIComponent(query)
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          data.error ||
+          "Erro ao buscar produtos."
+        );
+
+      }
+
+
+      currentProducts =
+        Array.isArray(data.results)
+          ? data.results
+          : [];
+
+
+      resultsCount.textContent =
+        currentProducts.length +
+        " oportunidades encontradas";
+
+
+      if (!currentProducts.length) {
+
+        empty.textContent =
+          "Não encontramos produtos para essa busca.";
+
+        empty.classList.add("show");
+
+        return;
+
+      }
+
+
+      renderProducts(
+        currentProducts
+      );
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      errorBox.textContent =
+        "❌ " + error.message;
+
+      errorBox.classList.add("show");
+
+      resultsCount.textContent =
+        "Erro na busca";
+
+    } finally {
+
+      loading.classList.remove("show");
+
+    }
+
   }
 
 
-  try{
+  // =========================================================
+  // RENDER DOS PRODUTOS
+  // =========================================================
 
-    const r =
-      await fetch('/api/ml/me');
+  function renderProducts(products) {
+
+    const grid =
+      document.getElementById("grid");
+
+    grid.innerHTML = "";
 
 
-    const d =
-      await r.json();
+    products.forEach(
+      (product, index) => {
+
+        grid.appendChild(
+          createProductCard(
+            product,
+            index
+          )
+        );
+
+      }
+    );
+
+  }
 
 
-    if(d.connected){
+  function createProductCard(
+    product,
+    index
+  ) {
 
-      set(d.user);
+    const card =
+      document.createElement("article");
+
+    card.className =
+      "card";
+
+
+    const image =
+      product.image ||
+      "https://via.placeholder.com/500x500?text=Sem+imagem";
+
+
+    const price =
+      formatMoney(
+        product.price
+      );
+
+
+    const originalPrice =
+      formatMoney(
+        product.original_price
+      );
+
+
+    const priceMin =
+      formatMoney(
+        product.price_min
+      );
+
+
+    const discount =
+      typeof product.discount === "number"
+        ? product.discount
+        : null;
+
+
+    const score =
+      typeof product.score === "number"
+        ? product.score
+        : 0;
+
+
+    let priceHtml = "";
+
+
+    if (price) {
+
+      priceHtml = `
+        ${
+          originalPrice
+            ? `<div class="price-old">
+                ${escapeHtml(originalPrice)}
+              </div>`
+            : ""
+        }
+
+        <div class="price">
+          ${escapeHtml(price)}
+        </div>
+      `;
+
+    } else if (priceMin) {
+
+      priceHtml = `
+        <div class="price-range">
+          A partir de
+        </div>
+
+        <div class="price">
+          ${escapeHtml(priceMin)}
+        </div>
+      `;
+
+    } else {
+
+      priceHtml = `
+        <div class="no-price">
+          Preço indisponível
+        </div>
+      `;
 
     }
 
 
-  }catch{}
-
-}
+    let badges = "";
 
 
-init();
+    if (discount !== null) {
+
+      badges += `
+        <span class="tag discount">
+          🔥 ${discount}% OFF
+        </span>
+      `;
+
+    }
+
+
+    if (product.has_winner) {
+
+      badges += `
+        <span class="tag winner">
+          🏆 Anúncio vencedor
+        </span>
+      `;
+
+    } else {
+
+      badges += `
+        <span class="tag">
+          Sem anúncio vencedor
+        </span>
+      `;
+
+    }
+
+
+    if (product.free_shipping) {
+
+      badges += `
+        <span class="tag shipping">
+          🚚 Frete grátis
+        </span>
+      `;
+
+    }
+
+
+    if (
+      typeof product.sold_quantity === "number" &&
+      product.sold_quantity > 0
+    ) {
+
+      badges += `
+        <span class="tag">
+          🛒 ${product.sold_quantity.toLocaleString("pt-BR")} vendidos
+        </span>
+      `;
+
+    }
+
+
+    const discountBadge =
+      discount !== null
+        ? `<div class="deal-badge">
+            🔥 ${discount}% OFF
+           </div>`
+        : "";
+
+
+    card.innerHTML = `
+
+      <div class="image-area">
+
+        ${discountBadge}
+
+        <div class="score-badge">
+          Radar ${score}/100
+        </div>
+
+        <img
+          class="product-image"
+          src="${escapeHtml(image)}"
+          alt="${escapeHtml(product.title)}"
+          loading="lazy"
+        >
+
+      </div>
+
+
+      <div class="card-content">
+
+        <div class="product-title">
+          ${escapeHtml(product.title)}
+        </div>
+
+
+        ${priceHtml}
+
+
+        <div class="info-list">
+
+          ${badges}
+
+          <span class="tag">
+            ✓ ${escapeHtml(product.condition || "Novo")}
+          </span>
+
+        </div>
+
+
+        <div class="score-area">
+
+          <div class="score-title">
+
+            <span>
+              Potencial da oportunidade
+            </span>
+
+            <span>
+              ${score}/100
+            </span>
+
+          </div>
+
+
+          <div class="score-bar">
+
+            <div
+              class="score-fill"
+              style="width:${score}%"
+            ></div>
+
+          </div>
+
+        </div>
+
+
+        <div class="actions">
+
+          <button
+            class="action primary"
+            onclick="openProduct(${index})"
+          >
+            🔗 PRODUTO
+          </button>
+
+
+          <button
+            class="action dark"
+            onclick="copyProductLink(${index})"
+          >
+            📋 COPIAR LINK
+          </button>
+
+
+          <button
+            class="action green"
+            onclick="copyFacebookPost(${index})"
+          >
+            📱 COPIAR POST PARA FACEBOOK
+          </button>
+
+        </div>
+
+      </div>
+
+    `;
+
+
+    return card;
+
+  }
+
+
+  // =========================================================
+  // ABRIR PRODUTO
+  // =========================================================
+
+  function openProduct(index) {
+
+    const product =
+      currentProducts[index];
+
+    if (!product) {
+      return;
+    }
+
+
+    if (!product.permalink) {
+
+      showToast(
+        "Link do produto indisponível."
+      );
+
+      return;
+
+    }
+
+
+    window.open(
+      product.permalink,
+      "_blank"
+    );
+
+  }
+
+
+  // =========================================================
+  // COPIAR LINK
+  // =========================================================
+
+  async function copyProductLink(index) {
+
+    const product =
+      currentProducts[index];
+
+    if (!product) {
+      return;
+    }
+
+
+    const link =
+      affiliateLink ||
+      product.permalink;
+
+
+    try {
+
+      await navigator.clipboard.writeText(
+        link
+      );
+
+      if (affiliateLink) {
+
+        showToast(
+          "🔗 Seu link de afiliado foi copiado!"
+        );
+
+      } else {
+
+        showToast(
+          "🔗 Link do produto copiado. Salve seu link de afiliado acima para usar o link de afiliado."
+        );
+
+      }
+
+    } catch (error) {
+
+      showToast(
+        "Não foi possível copiar o link."
+      );
+
+    }
+
+  }
+
+
+  // =========================================================
+  // GERAR TEXTO FACEBOOK
+  // =========================================================
+
+  function generateFacebookPost(product) {
+
+    const price =
+      formatMoney(
+        product.price
+      );
+
+
+    const originalPrice =
+      formatMoney(
+        product.original_price
+      );
+
+
+    const priceMin =
+      formatMoney(
+        product.price_min
+      );
+
+
+    let priceText =
+      "Confira o preço no anúncio.";
+
+
+    if (price && originalPrice) {
+
+      priceText =
+        `De ${originalPrice} por ${price}`;
+
+    } else if (price) {
+
+      priceText =
+        `Por apenas ${price}`;
+
+    } else if (priceMin) {
+
+      priceText =
+        `A partir de ${priceMin}`;
+
+    }
+
+
+    let discountText = "";
+
+
+    if (
+      typeof product.discount === "number"
+    ) {
+
+      discountText =
+        `\n🔥 ${product.discount}% OFF`;
+
+    }
+
+
+    let shippingText = "";
+
+
+    if (product.free_shipping) {
+
+      shippingText =
+        "\n🚚 Frete grátis";
+
+    }
+
+
+    const link =
+      affiliateLink ||
+      product.permalink ||
+      "";
+
+
+    const affiliateNotice =
+      affiliateLink
+        ? ""
+        : "\n\n⚠️ Cole seu link de afiliado antes de publicar.";
+
+
+    const post = `
+
+🔥 OFERTA ENCONTRADA!
+
+🛒 ${product.title}
+
+💰 ${priceText}${discountText}${shippingText}
+
+👉 Confira a oferta:
+${link}
+
+⚠️ Preço e disponibilidade podem mudar.${affiliateNotice}
+
+    `.trim();
+
+
+    return post;
+
+  }
+
+
+  async function copyFacebookPost(index) {
+
+    const product =
+      currentProducts[index];
+
+    if (!product) {
+      return;
+    }
+
+
+    const post =
+      generateFacebookPost(
+        product
+      );
+
+
+    try {
+
+      await navigator.clipboard.writeText(
+        post
+      );
+
+
+      if (affiliateLink) {
+
+        showToast(
+          "📱 Post completo copiado com seu link de afiliado!"
+        );
+
+      } else {
+
+        showToast(
+          "📋 Post copiado. Cole seu link de afiliado antes de publicar."
+        );
+
+      }
+
+    } catch (error) {
+
+      showToast(
+        "Não foi possível copiar o post."
+      );
+
+    }
+
+  }
+
+
+  // =========================================================
+  // ENTER NA BUSCA
+  // =========================================================
+
+  document
+    .getElementById("searchInput")
+    .addEventListener(
+      "keydown",
+      function(event) {
+
+        if (
+          event.key === "Enter"
+        ) {
+
+          searchProducts();
+
+        }
+
+      }
+    );
+
+
+  // =========================================================
+  // INICIALIZAÇÃO
+  // =========================================================
+
+  loadAffiliateLink();
+
+  checkConnection();
 
 </script>
 
