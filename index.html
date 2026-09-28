@@ -938,40 +938,10 @@
 
   async function connectMercadoLivre() {
 
-    try {
-
-      const response =
-        await fetch("/api/ml/start");
-
-      if (!response.ok) {
-
-        throw new Error(
-          "Não foi possível iniciar a conexão."
-        );
-
-      }
-
-      const data =
-        await response.json();
-
-      if (!data.url) {
-
-        throw new Error(
-          "URL de autorização não encontrada."
-        );
-
-      }
-
-      window.location.href =
-        data.url;
-
-    } catch (error) {
-
-      showToast(
-        "❌ " + error.message
-      );
-
-    }
+    // O endpoint /api/ml/start já faz o
+    // redirecionamento diretamente para o
+    // Mercado Livre.
+    window.location.href = "/api/ml/start";
 
   }
 
