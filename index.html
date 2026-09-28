@@ -1665,14 +1665,218 @@ ${link}
       }
     );
 
+// =========================================================
+// FINALIZAÇÃO DO OAUTH DO MERCADO LIVRE
+// =========================================================
 
-  // =========================================================
-  // INICIALIZAÇÃO
-  // =========================================================
+async function handleOAuthCallback() {
+
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  const code =
+    params.get("code");
+
+  const state =
+    params.get("state");
+
+  const oauthError =
+    params.get("error");
+
+
+  // Se o usuário cancelou a autorização
+  if (oauthError) {
+
+    showNotice(
+      "❌ A autorização do Mercado Livre foi cancelada."
+    );
+
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname
+    );
+
+    return false;
+  }
+
+
+  // Não estamos voltando do Mercado Livre
+  if (!code) {
+    return false;
+  }
+
+
+  showNotice(
+    "🔄 Finalizando conexão com o Mercado Livre..."
+  );
+
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/ml/exchange?code=" +
+        encodeURIComponent(code) +
+        "&state=" +
+        encodeURIComponent(state || "")
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.error ||
+        "Não foi possível finalizar a conexão."
+      );
+
+    }
+
+
+    if (
+      !data.connected ||
+      !data.user
+    ) {
+
+      throw new Error(
+        "O Mercado Livre não confirmou a conexão."
+      );
+
+    }
+
+
+    setConnected(
+      data.user.nickname,
+      data.user.id
+    );
+
+
+    showToast(
+      "🟢 Mercado Livre conectado com sucesso!"
+    );
+
+
+    // Remove ?code=...&state=... da barra
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname
+    );
+
+
+    return true;
+
+
+  } catch (error) {
+
+    console.error(
+      "Erro no OAuth:",
+      error
+    );
+
+
+    showNotice(
+      "❌ " + error.message
+    );
+
+
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname
+    );
+
+
+    return false;
+  }
+
+}
+
+
+// =========================================================
+// VERIFICAR CONEXÃO EXISTENTE
+// =========================================================
+
+async function checkConnection() {
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/ml/me"
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if (
+      data &&
+      data.connected &&
+      data.user
+    ) {
+
+      setConnected(
+        data.user.nickname,
+        data.user.id
+      );
+
+    } else {
+
+      setDisconnected();
+
+    }
+
+
+  } catch (error) {
+
+    console.error(
+      "Erro ao verificar conexão:",
+      error
+    );
+
+    setDisconnected();
+
+  }
+
+}
+
+
+// =========================================================
+// INICIALIZAÇÃO
+// =========================================================
+
+async function initializeApp() {
 
   loadAffiliateLink();
 
-  checkConnection();
+
+  // Primeiro verifica se estamos
+  // voltando do Mercado Livre
+  const returnedFromOAuth =
+    await handleOAuthCallback();
+
+
+  // Se não era retorno do OAuth,
+  // verifica uma sessão que já existe
+  if (!returnedFromOAuth) {
+
+    await checkConnection();
+
+  }
+
+}
+
+
+initializeApp();
+  
 
 </script>
 
