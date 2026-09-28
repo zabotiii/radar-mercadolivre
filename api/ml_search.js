@@ -18,7 +18,6 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Busca produtos no catálogo
     const searchUrl = new URL(
       'https://api.mercadolibre.com/products/search'
     );
@@ -46,7 +45,6 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Pega os detalhes de cada produto
     const results = await Promise.all(
       (searchData.results || []).slice(0, 12).map(async (product) => {
         try {
@@ -65,50 +63,75 @@ module.exports = async (req, res) => {
           if (!detailResponse.ok) {
             return {
               id: product.id,
+              product_id: product.id,
               title: product.name,
-              price: 0,
+              price: null,
               thumbnail: '',
-              permalink:
-                detail.permalink ||
-                `https://www.mercadolivre.com.br/p/${product.id}`,
-              sold_quantity: 0,
+              permalink: `https://www.mercadolivre.com.br/p/${product.id}`,
+              sold_quantity: null,
               condition: 'Novo',
-              product_id: product.id
+              has_winner: false
             };
           }
 
-          const winner = detail.buy_box_winner || {};
+          const winner = detail.buy_box_winner || null;
 
-          const picture =
-            detail.pictures &&
-            detail.pictures.length > 0
+          const thumbnail =
+            detail.pictures && detail.pictures.length
               ? detail.pictures[0].url
               : '';
 
           return {
-            id: winner.item_id || product.id,
+            id: winner?.item_id || product.id,
             product_id: product.id,
             title: detail.name || product.name,
-            price: Number(winner.price || 0),
-            thumbnail: picture,
+
+            // Só mostra preço quando realmente existe
+            price:
+              typeof winner?.price === 'number'
+                ? winner.price
+                : null,
+
+            thumbnail,
+
             permalink:
               detail.permalink ||
-              (winner.item_id
-                ? `https://www.mercadolivre.com.br/p/${product.id}`
-                : `https://www.mercadolivre.com.br/p/${product.id}`),
-            sold_quantity: Number(winner.sold_quantity || 0),
-            condition: 'Novo'
+              `https://www.mercadolivre.com.br/p/${product.id}`,
+
+            // Usa a venda do vencedor ou, quando disponível,
+            // a venda informada no próprio produto
+            sold_quantity:
+              typeof winner?.sold_quantity === 'number'
+                ? winner.sold_quantity
+                : typeof detail.sold_quantity === 'number'
+                ? detail.sold_quantity
+                : null,
+
+            condition: 'Novo',
+
+            has_winner: !!winner,
+
+            seller_id: winner?.seller_id || null,
+
+            available_quantity:
+              typeof winner?.available_quantity === 'number'
+                ? winner.available_quantity
+                : null,
+
+            free_shipping:
+              winner?.shipping?.free_shipping === true
           };
         } catch (error) {
           return {
             id: product.id,
             product_id: product.id,
             title: product.name,
-            price: 0,
+            price: null,
             thumbnail: '',
             permalink: `https://www.mercadolivre.com.br/p/${product.id}`,
-            sold_quantity: 0,
-            condition: 'Novo'
+            sold_quantity: null,
+            condition: 'Novo',
+            has_winner: false
           };
         }
       })
@@ -119,6 +142,7 @@ module.exports = async (req, res) => {
       paging: searchData.paging || {},
       results
     });
+
   } catch (e) {
     return res.status(500).json({
       error: e.message || 'Erro interno'
