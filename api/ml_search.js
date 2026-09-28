@@ -1,151 +1,284 @@
-const { session } = require('./lib');
+const {
+  requireSession,
+  json,
+  mlFetch
+} = require("./lib");
 
-module.exports = async (req, res) => {
+function money(value) {
+  if (typeof value !== "number") return null;
+
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  });
+}
+
+function calculateDiscount(price, originalPrice) {
+  if (
+    typeof price !== "number" ||
+    typeof originalPrice !== "number" ||
+    originalPrice <= price ||
+    originalPrice <= 0
+  ) {
+    return null;
+  }
+
+  return Math.round(((originalPrice - price) / originalPrice) * 100);
+}
+
+function calculateScore(product) {
+  let score = 0;
+
+  // Desconto
+  if (typeof product.discount === "number") {
+    if (product.discount >= 50) score += 35;
+    else if (product.discount >= 40) score += 30;
+    else if (product.discount >= 30) score += 25;
+    else if (product.discount >= 20) score += 18;
+    else if (product.discount >= 10) score += 10;
+  }
+
+  // Anúncio vencedor
+  if (product.has_winner) {
+    score += 20;
+  }
+
+  // Frete grátis
+  if (product.free_shipping) {
+    score += 10;
+  }
+
+  // Disponibilidade
+  if (
+    typeof product.available_quantity === "number" &&
+    product.available_quantity > 0
+  ) {
+    score += 10;
+  }
+
+  // Vendas
+  if (typeof product.sold_quantity === "number") {
+    if (product.sold_quantity >= 1000) score += 15;
+    else if (product.sold_quantity >= 500) score += 12;
+    else if (product.sold_quantity >= 100) score += 9;
+    else if (product.sold_quantity >= 50) score += 6;
+    else if (product.sold_quantity > 0) score += 3;
+  }
+
+  return Math.min(score, 100);
+}
+
+export default async function handler(req, res) {
   try {
-    const s = await session(req, res);
-
-    if (!s) {
-      return res.status(401).json({
-        error: 'Mercado Livre não conectado. Conecte sua conta novamente.'
+    if (req.method !== "GET") {
+      return json(res, 405, {
+        error: "Método não permitido"
       });
     }
 
-    const q = String(req.query.q || '').trim();
+    const session = await requireSession(req, res);
+
+    if (!session) {
+      return;
+    }
+
+    const q = String(req.query.q || "").trim();
 
     if (!q) {
-      return res.status(400).json({
-        error: 'Digite um termo para pesquisar.'
+      return json(res, 400, {
+        error: "Informe um termo de busca."
       });
     }
 
-    const searchUrl = new URL(
-      'https://api.mercadolibre.com/products/search'
+    const searchUrl =
+      "https://api.mercadolibre.com/products/search" +
+      "?status=active" +
+      "&site_id=MLB" +
+      "&q=" +
+      encodeURIComponent(q) +
+      "&limit=30";
+
+    const searchResponse = await mlFetch(
+      searchUrl,
+      session.access_token
     );
 
-    searchUrl.searchParams.set('status', 'active');
-    searchUrl.searchParams.set('site_id', 'MLB');
-    searchUrl.searchParams.set('q', q);
+    if (!searchResponse.ok) {
+      const text = await searchResponse.text();
 
-    const searchResponse = await fetch(searchUrl.toString(), {
-      headers: {
-        Authorization: `Bearer ${s.access_token}`,
-        Accept: 'application/json'
-      }
-    });
+      return json(res, searchResponse.status, {
+        error: "Erro na busca do Mercado Livre.",
+        details: text
+      });
+    }
 
     const searchData = await searchResponse.json();
 
-    if (!searchResponse.ok) {
-      return res.status(searchResponse.status).json({
-        error:
-          searchData.message ||
-          searchData.error ||
-          'Erro na busca do Mercado Livre',
-        details: searchData
-      });
+    const rawProducts = Array.isArray(searchData.results)
+      ? searchData.results
+      : [];
+
+    const products = [];
+
+    for (const product of rawProducts) {
+      try {
+        const detailResponse = await mlFetch(
+          `https://api.mercadolibre.com/products/${encodeURIComponent(
+            product.id
+          )}`,
+          session.access_token
+        );
+
+        if (!detailResponse.ok) {
+          continue;
+        }
+
+        const detail = await detailResponse.json();
+
+        const winner = detail.buy_box_winner || null;
+
+        const price =
+          winner && typeof winner.price === "number"
+            ? winner.price
+            : null;
+
+        const priceRange =
+          detail.buy_box_winner_price_range || null;
+
+        const priceMin =
+          priceRange &&
+          typeof priceRange.min === "number"
+            ? priceRange.min
+            : null;
+
+        const priceMax =
+          priceRange &&
+          typeof priceRange.max === "number"
+            ? priceRange.max
+            : null;
+
+        const originalPrice =
+          winner &&
+          typeof winner.original_price === "number"
+            ? winner.original_price
+            : null;
+
+        const discount = calculateDiscount(
+          price,
+          originalPrice
+        );
+
+        const soldQuantity =
+          winner &&
+          typeof winner.sold_quantity === "number"
+            ? winner.sold_quantity
+            : null;
+
+        const availableQuantity =
+          winner &&
+          typeof winner.available_quantity === "number"
+            ? winner.available_quantity
+            : null;
+
+        const freeShipping =
+          winner &&
+          winner.shipping &&
+          winner.shipping.free_shipping === true;
+
+        const sellerId =
+          winner && winner.seller_id
+            ? winner.seller_id
+            : null;
+
+        const image =
+          detail.pictures &&
+          detail.pictures.length > 0
+            ? detail.pictures[0].url
+            : null;
+
+        const permalink =
+          detail.permalink ||
+          product.permalink ||
+          `https://www.mercadolivre.com.br/p/${product.id}`;
+
+        const itemId =
+          winner && winner.item_id
+            ? winner.item_id
+            : null;
+
+        const result = {
+          id: product.id,
+          item_id: itemId,
+
+          title:
+            detail.name ||
+            product.name ||
+            "Produto Mercado Livre",
+
+          permalink,
+
+          image,
+
+          price,
+          price_min: priceMin,
+          price_max: priceMax,
+          original_price: originalPrice,
+
+          discount,
+
+          sold_quantity: soldQuantity,
+          available_quantity: availableQuantity,
+
+          free_shipping: Boolean(freeShipping),
+
+          seller_id: sellerId,
+
+          has_winner: Boolean(winner),
+
+          condition: "Novo",
+
+          score: 0
+        };
+
+        result.score = calculateScore(result);
+
+        products.push(result);
+      } catch (error) {
+        console.error(
+          "Erro ao processar produto:",
+          product.id,
+          error
+        );
+      }
     }
 
-    const results = await Promise.all(
-      (searchData.results || []).slice(0, 12).map(async (product) => {
-        try {
-          const detailResponse = await fetch(
-            `https://api.mercadolibre.com/products/${product.id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${s.access_token}`,
-                Accept: 'application/json'
-              }
-            }
-          );
+    // Primeiro os melhores scores
+    products.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
 
-          const detail = await detailResponse.json();
+      if (
+        typeof b.discount === "number" &&
+        typeof a.discount === "number"
+      ) {
+        return b.discount - a.discount;
+      }
 
-          if (!detailResponse.ok) {
-            return {
-              id: product.id,
-              product_id: product.id,
-              title: product.name,
-              price: null,
-              thumbnail: '',
-              permalink: `https://www.mercadolivre.com.br/p/${product.id}`,
-              sold_quantity: null,
-              condition: 'Novo',
-              has_winner: false
-            };
-          }
-
-          const winner = detail.buy_box_winner || null;
-
-          const thumbnail =
-            detail.pictures && detail.pictures.length
-              ? detail.pictures[0].url
-              : '';
-
-          return {
-            id: winner?.item_id || product.id,
-            product_id: product.id,
-            title: detail.name || product.name,
-
-            // Só mostra preço quando realmente existe
-            price:
-              typeof winner?.price === 'number'
-                ? winner.price
-                : null,
-
-            thumbnail,
-
-            permalink:
-              detail.permalink ||
-              `https://www.mercadolivre.com.br/p/${product.id}`,
-
-            // Usa a venda do vencedor ou, quando disponível,
-            // a venda informada no próprio produto
-            sold_quantity:
-              typeof winner?.sold_quantity === 'number'
-                ? winner.sold_quantity
-                : typeof detail.sold_quantity === 'number'
-                ? detail.sold_quantity
-                : null,
-
-            condition: 'Novo',
-
-            has_winner: !!winner,
-
-            seller_id: winner?.seller_id || null,
-
-            available_quantity:
-              typeof winner?.available_quantity === 'number'
-                ? winner.available_quantity
-                : null,
-
-            free_shipping:
-              winner?.shipping?.free_shipping === true
-          };
-        } catch (error) {
-          return {
-            id: product.id,
-            product_id: product.id,
-            title: product.name,
-            price: null,
-            thumbnail: '',
-            permalink: `https://www.mercadolivre.com.br/p/${product.id}`,
-            sold_quantity: null,
-            condition: 'Novo',
-            has_winner: false
-          };
-        }
-      })
-    );
-
-    return res.status(200).json({
-      keywords: searchData.keywords || q,
-      paging: searchData.paging || {},
-      results
+      return 0;
     });
 
-  } catch (e) {
-    return res.status(500).json({
-      error: e.message || 'Erro interno'
+    return json(res, 200, {
+      keywords: q,
+      total: products.length,
+      results: products
+    });
+  } catch (error) {
+    console.error(error);
+
+    return json(res, 500, {
+      error: "Erro interno.",
+      details: error.message
     });
   }
-};
+}
