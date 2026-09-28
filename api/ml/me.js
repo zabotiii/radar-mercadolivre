@@ -1,0 +1,1 @@
+const {session,me}=require('../lib');module.exports=async(req,res)=>{try{const s=await session(req,res);if(!s)return res.json({connected:false});const u=await me(s.access_token);res.json({connected:true,user:{id:u.id,nickname:u.nickname,first_name:u.first_name}})}catch(e){res.json({connected:false})}};

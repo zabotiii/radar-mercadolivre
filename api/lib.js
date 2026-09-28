@@ -1,0 +1,10 @@
+const crypto=require('crypto');
+function cookies(req){const o={};(req.headers.cookie||'').split(';').forEach(x=>{const i=x.indexOf('=');if(i>0)o[x.slice(0,i).trim()]=decodeURIComponent(x.slice(i+1).trim())});return o}
+function cookie(n,v,maxAge=600){return `${n}=${encodeURIComponent(v)}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Lax`}
+function key(){return crypto.createHash('sha256').update(process.env.SESSION_SECRET||'').digest()}
+function enc(o){const iv=crypto.randomBytes(12),c=crypto.createCipheriv('aes-256-gcm',key(),iv),d=Buffer.concat([c.update(JSON.stringify(o),'utf8'),c.final()]);return Buffer.concat([iv,c.getAuthTag(),d]).toString('base64url')}
+function dec(s){try{const b=Buffer.from(s,'base64url'),d=crypto.createDecipheriv('aes-256-gcm',key(),b.subarray(0,12));d.setAuthTag(b.subarray(12,28));return JSON.parse(Buffer.concat([d.update(b.subarray(28)),d.final()]).toString())}catch{return null}}
+async function token(body){const r=await fetch('https://api.mercadolibre.com/oauth/token',{method:'POST',headers:{accept:'application/json','content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body)}),d=await r.json();if(!r.ok)throw Error(d.error_description||d.message||'Erro no token do Mercado Livre');return d}
+async function me(a){const r=await fetch('https://api.mercadolibre.com/users/me',{headers:{Authorization:`Bearer ${a}`}}),d=await r.json();if(!r.ok)throw Error(d.message||'Erro ao consultar usuário');return d}
+async function session(req,res){const s=dec(cookies(req).ml_session||'');if(!s)return null;if(Date.now()<s.exp)return s;if(!s.refresh_token)return null;const t=await token({grant_type:'refresh_token',client_id:process.env.ML_CLIENT_ID,client_secret:process.env.ML_CLIENT_SECRET,refresh_token:s.refresh_token});const n={access_token:t.access_token,refresh_token:t.refresh_token||s.refresh_token,exp:Date.now()+((t.expires_in||21600)-60)*1000,user_id:t.user_id||s.user_id};res.setHeader('Set-Cookie',cookie('ml_session',enc(n),2592000));return n}
+module.exports={cookies,cookie,enc,dec,token,me,session};
