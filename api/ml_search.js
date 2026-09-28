@@ -18,12 +18,16 @@ module.exports = async (req, res) => {
       });
     }
 
-    const url = new URL('https://api.mercadolibre.com/sites/MLB/search');
+    const url = new URL(
+      'https://api.mercadolibre.com/products/search'
+    );
 
+    url.searchParams.set('status', 'active');
+    url.searchParams.set('site_id', 'MLB');
     url.searchParams.set('q', q);
-    url.searchParams.set('limit', '20');
 
     const r = await fetch(url.toString(), {
+      method: 'GET',
       headers: {
         Authorization: `Bearer ${s.access_token}`,
         Accept: 'application/json'
@@ -41,15 +45,16 @@ module.exports = async (req, res) => {
 
     const results = (data.results || []).map(p => ({
       id: p.id,
-      title: p.title,
-      price: p.price,
-      thumbnail: p.thumbnail,
-      permalink: p.permalink,
-      sold_quantity: p.sold_quantity,
-      condition: p.condition
+      title: p.name,
+      status: p.status,
+      domain_id: p.domain_id,
+      settings: p.settings || {},
+      attributes: p.attributes || []
     }));
 
     return res.status(200).json({
+      keywords: data.keywords || q,
+      paging: data.paging || {},
       results
     });
 
