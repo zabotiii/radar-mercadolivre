@@ -1,5 +1,11 @@
 const https = require("https");
 
+const SEARCH_HOSTS = [
+  "https://www.google.com/search?q=",
+  "https://html.duckduckgo.com/html/?q=",
+  "https://www.bing.com/search?format=rss&q="
+];
+
 function cleanQuery(q) {
   return String(q || "")
     .replace(/[^\p{L}\p{N}\s-]/gu, " ")
@@ -93,37 +99,26 @@ module.exports = async (req, res) => {
     const all = [];
 
     for (const term of queries) {
-      const url = "https://www.bing.com/search?format=rss&q=" +
-        encodeURIComponent("site:facebook.com/groups " + term) +
-        "&count=10";
+      const search = "site:facebook.com/groups " + term;
 
-      const response = await request(url);
+      for (const host of SEARCH_HOSTS) {
+        try {
+          const url = host + encodeURIComponent(search) + "&num=10&count=10";
+          const response = await request(url);
+          if (response.status !== 200) continue;
 
-      if (response.status !== 200) continue;
+          let found = [];
+          if (host.includes("google.com")) {
+            found = parseGoogle(response.body);
+          } else {
+            found = parseSearchResults(response.body);
+            if (!found.length) found = extractFacebookGroups(response.body);
+          }
 
-      all.push(...parseSearchResults(response.body));
+          all.push(...found);
+          if (found.length >= 5) break;
+        } catch (e) {
+          console.error("search provider error", host, e.message);
+        }
+      }
     }
-
-    const unique = [];
-    const seen = new Set();
-
-    for (const item of all) {
-      const normalized = item.url
-        .replace(/\?.*$/, "")
-        .replace(/\/$/, "")
-        .toLowerCase();
-
-      if (seen.has(normalized)) continue;
-      seen.add(normalized);
-      unique.push({ ...item, url: normalized });
-    }
-
-    return res.status(200).json({
-      query: q,
-      results: unique.slice(0, 10)
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Não foi possível encontrar grupos agora." });
-  }
-};
