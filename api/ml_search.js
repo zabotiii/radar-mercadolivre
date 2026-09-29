@@ -2,6 +2,55 @@ const {
   session
 } = require("./lib");
 
+async function getCategoryName(categoryId, token) {
+  if (!categoryId) return null;
+
+  try {
+    const response = await fetch(
+      "https://api.mercadolibre.com/categories/" + encodeURIComponent(categoryId),
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json"
+        }
+      }
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    return data.name || null;
+  } catch {
+    return null;
+  }
+}
+
+function affiliateCommissionRate(categoryName) {
+  const name = String(categoryName || "").toLowerCase();
+
+  if (/beleza|calçados|calcados|roupas|bolsas|esportes|fitness/.test(name)) return 0.16;
+  if (/celular|informática|informatica|eletrônicos|eletronicos|áudio|audio|vídeo|video|câmeras|cameras|eletrodomésticos|eletrodomesticos/.test(name)) return 0.05;
+  if (name) return 0.12;
+
+  return null;
+}
+
+function applyAffiliateCommission(product, categoryName) {
+  const rate = affiliateCommissionRate(categoryName);
+  const price = Number(product.price);
+
+  product.category_name = categoryName || null;
+  product.affiliate_commission_rate = rate;
+  product.affiliate_commission_estimate =
+    rate !== null && Number.isFinite(price) && price > 0
+      ? Math.round(price * rate * 100) / 100
+      : null;
+  product.affiliate_commission_label =
+    rate !== null ? Math.round(rate * 100) + "%" : null;
+
+  return product;
+}
+
 module.exports = async function(req, res) {
 
   try {
@@ -414,6 +463,23 @@ module.exports = async function(req, res) {
           condition:
             "Novo",
 
+          category_id:
+            detail.category_id ||
+            product.category_id ||
+            null,
+
+          category_name:
+            null,
+
+          affiliate_commission_rate:
+            null,
+
+          affiliate_commission_estimate:
+            null,
+
+          affiliate_commission_label:
+            null,
+
           score
 
         });
@@ -431,6 +497,20 @@ module.exports = async function(req, res) {
 
     }
 
+
+    // =========================================
+    // COMISSÃO ESTIMADA
+    // =========================================
+
+    await Promise.all(
+      products.map(async product => {
+        const categoryName = await getCategoryName(
+          product.category_id,
+          sess.access_token
+        );
+        applyAffiliateCommission(product, categoryName);
+      })
+    );
 
     // =========================================
     // ORDENAÇÃO
