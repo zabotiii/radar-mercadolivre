@@ -201,16 +201,17 @@ function itemIdOf(item) {
   return item.item_id || item.id || null;
 }
 
-function makeItemUrl(item, catalogUrl) {
+function makeItemUrl(item, catalogUrl, catalogProductId) {
   if (item && item.permalink) {
     return item.permalink;
   }
 
-  if (item && item.id) {
-    return `https://www.mercadolivre.com.br/p/${encodeURIComponent(item.id)}`;
-  }
-
-  return catalogUrl || null;
+  if (item && item.permalink) return item.permalink;
+  if (catalogUrl) return catalogUrl;
+  if (catalogProductId) return `https://www.mercadolivre.com.br/p/${encodeURIComponent(catalogProductId)}`;
+  if (item && item.item_id) return `https://www.mercadolivre.com.br/p/${encodeURIComponent(item.item_id)}`;
+  if (item && item.id) return `https://www.mercadolivre.com.br/p/${encodeURIComponent(item.id)}`;
+  return null;
 }
 
 function buildCandidate({
@@ -281,7 +282,8 @@ function buildCandidate({
     permalink:
       makeItemUrl(
         item,
-        catalogUrl
+        catalogUrl,
+        catalog.id
       ),
 
     link:
@@ -365,7 +367,7 @@ function buildCandidate({
         catalog &&
         catalog.buy_box_winner &&
         catalog.buy_box_winner.item_id ===
-          item.id
+          realItemId
       ),
 
     mais_vendido:
