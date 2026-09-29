@@ -3527,12 +3527,12 @@ ${link}
   // =========================================================
 
   function connectFacebook() {
-    window.location.href = "/api/facebook_login";
+    window.location.href = "/api/facebook?action=login";
   }
 
   async function loadFacebookPages(showErrors = false) {
     try {
-      const response = await fetch("/api/facebook_pages");
+      const response = await fetch("/api/facebook?action=pages");
       const data = await response.json();
       const status = document.getElementById("facebookStatus");
       const connectButton = document.getElementById("facebookConnectButton");
@@ -3581,7 +3581,7 @@ ${link}
   async function selectFacebookPage(pageId) {
     if (!pageId) return;
     try {
-      const response = await fetch("/api/facebook_select", {
+      const response = await fetch("/api/facebook?action=select", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ page_id: pageId })
@@ -3615,7 +3615,7 @@ ${link}
     }
 
     try {
-      const response = await fetch("/api/facebook_publish", {
+      const response = await fetch("/api/facebook?action=publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
