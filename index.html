@@ -466,6 +466,22 @@
       color: #666;
     }
 
+    .facebook-publish-box {
+      margin-top: 15px;
+      padding: 15px;
+      border: 1px solid #dbe4f0;
+      border-radius: 13px;
+      background: #f7fbff;
+    }
+    .facebook-publish-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .facebook-publish-title { font-weight:900; }
+    .facebook-status { font-size:12px; color:#666; margin-top:5px; }
+    .facebook-publish-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .facebook-button { border:0; border-radius:9px; padding:10px 13px; background:#1877f2; color:white; font-weight:900; font-size:12px; }
+    .facebook-button.dark { background:#222; }
+    .facebook-button.green { background:#39a852; }
+    .facebook-page-select { min-width:220px; border:1px solid #ddd; border-radius:9px; padding:9px 10px; background:white; font-weight:700; }
+
     .results-tools {
       display: flex;
       align-items: center;
@@ -1551,7 +1567,21 @@
         🔥 Melhores oportunidades
       </h2>
 
-      <div class="results-tools">
+      <div class="facebook-publish-box">
+      <div class="facebook-publish-head">
+        <div>
+          <div class="facebook-publish-title">📘 Publicação automática no Facebook</div>
+          <div id="facebookStatus" class="facebook-status">Facebook ainda não conectado.</div>
+        </div>
+        <div class="facebook-publish-actions">
+          <button id="facebookConnectButton" class="facebook-button" onclick="connectFacebook()">🔵 CONECTAR FACEBOOK</button>
+          <select id="facebookPageSelect" class="facebook-page-select" style="display:none" onchange="selectFacebookPage(this.value)"></select>
+          <button id="facebookTopPublishButton" class="facebook-button green" onclick="publishTopOffer()" style="display:none">🚀 PUBLICAR MELHOR OFERTA</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="results-tools">
         <div>
           <div id="resultsCount" class="results-count">
             Nenhuma busca realizada
@@ -2872,6 +2902,13 @@
           </button>
 
           <button
+            class="facebook-button"
+            onclick="publishFacebookPost(${index})"
+          >
+            📘 PUBLICAR NO FACEBOOK
+          </button>
+
+          <button
             class="viral-button"
             onclick="copyViralPost(${index})"
           >
@@ -3486,6 +3523,132 @@ ${link}
 
 
   // =========================================================
+  // PUBLICAÇÃO AUTOMÁTICA NO FACEBOOK
+  // =========================================================
+
+  function connectFacebook() {
+    window.location.href = "/api/facebook_login";
+  }
+
+  async function loadFacebookPages(showErrors = false) {
+    try {
+      const response = await fetch("/api/facebook_pages");
+      const data = await response.json();
+      const status = document.getElementById("facebookStatus");
+      const connectButton = document.getElementById("facebookConnectButton");
+      const select = document.getElementById("facebookPageSelect");
+      const topButton = document.getElementById("facebookTopPublishButton");
+
+      if (!data.connected) {
+        status.textContent = "Facebook ainda não conectado.";
+        connectButton.style.display = "inline-block";
+        select.style.display = "none";
+        topButton.style.display = "none";
+        return;
+      }
+
+      connectButton.textContent = "🔄 RECONECTAR FACEBOOK";
+
+      if (!Array.isArray(data.pages) || !data.pages.length) {
+        status.textContent = "Conectado, mas nenhuma Página foi encontrada.";
+        select.style.display = "none";
+        topButton.style.display = "none";
+        return;
+      }
+
+      select.innerHTML =
+        '<option value="">Selecione a Página...</option>' +
+        data.pages.map(page =>
+          '<option value="' + escapeHtml(page.id) + '"' +
+          (data.selectedPageId === page.id ? ' selected' : '') + '>' +
+          escapeHtml(page.name) + '</option>'
+        ).join("");
+
+      select.style.display = "inline-block";
+
+      if (data.selectedPageId) {
+        status.textContent = "Conectado à Página: " + (data.selectedPageName || "Página selecionada") + ".";
+        topButton.style.display = "inline-block";
+      } else {
+        status.textContent = "Escolha a Página que receberá as ofertas.";
+        topButton.style.display = "none";
+      }
+    } catch (error) {
+      if (showErrors) showToast("❌ Não foi possível verificar o Facebook.");
+    }
+  }
+
+  async function selectFacebookPage(pageId) {
+    if (!pageId) return;
+    try {
+      const response = await fetch("/api/facebook_select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ page_id: pageId })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Não foi possível selecionar a Página.");
+      showToast("📘 Página conectada: " + data.page.name);
+      await loadFacebookPages(true);
+    } catch (error) {
+      showToast("❌ " + error.message);
+    }
+  }
+
+  async function publishFacebookPost(index) {
+    const product = currentProducts[index];
+    if (!product) return;
+    const affiliateLink = getAffiliateLink(product);
+    if (!affiliateLink) {
+      openAffiliateModal(index);
+      showToast("🔗 Salve primeiro o link de afiliado deste produto.");
+      return;
+    }
+    await publishProductToFacebook(product);
+  }
+
+  async function publishProductToFacebook(product) {
+    const affiliateLink = getAffiliateLink(product);
+    if (!affiliateLink) {
+      showToast("🔗 Este produto não tem link de afiliado salvo.");
+      return false;
+    }
+
+    try {
+      const response = await fetch("/api/facebook_publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: generateFacebookPost(product),
+          link: affiliateLink
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "O Facebook recusou a publicação.");
+      showToast("🚀 Oferta publicada no Facebook!");
+      return true;
+    } catch (error) {
+      if (/Facebook não conectado|selecione uma Página/i.test(error.message)) {
+        await loadFacebookPages(true);
+      }
+      showToast("❌ " + error.message);
+      return false;
+    }
+  }
+
+  async function publishTopOffer() {
+    const ranked = rankProductsForPosting(currentProducts);
+    const selected = ranked[0]?.product;
+    if (!selected) {
+      showToast("🔗 Nenhuma oferta com link de afiliado está pronta para publicar.");
+      return;
+    }
+    if (!confirm("Publicar agora a melhor oferta selecionada pelo Radar no Facebook?")) return;
+    await publishProductToFacebook(selected);
+  }
+
+
+  // =========================================================
   // ENTER NA BUSCA
   // =========================================================
 
@@ -3654,6 +3817,17 @@ ${link}
 
     loadAffiliateLinks();
 
+    await loadFacebookPages(false);
+
+    const facebookParams = new URLSearchParams(window.location.search);
+    if (facebookParams.get("facebook") === "connected") {
+      showToast("🟢 Facebook conectado! Escolha sua Página.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+      await loadFacebookPages(false);
+    } else if (facebookParams.get("facebook") === "error") {
+      showToast("❌ " + (facebookParams.get("message") || "Erro ao conectar Facebook."));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
 
     const returnedFromOAuth =
       await handleOAuthCallback();
