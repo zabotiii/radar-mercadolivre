@@ -202,10 +202,6 @@ function itemIdOf(item) {
 }
 
 function makeItemUrl(item, catalogUrl, catalogProductId) {
-  if (item && item.permalink) {
-    return item.permalink;
-  }
-
   if (item && item.permalink) return item.permalink;
   if (catalogUrl) return catalogUrl;
   if (catalogProductId) return `https://www.mercadolivre.com.br/p/${encodeURIComponent(catalogProductId)}`;
