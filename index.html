@@ -2,11 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Radar MercadoLivre</title>
 
@@ -26,6 +22,10 @@
     button,
     input {
       font-family: inherit;
+    }
+
+    button {
+      cursor: pointer;
     }
 
     .topbar {
@@ -72,7 +72,7 @@
     .status {
       padding: 8px 13px;
       border-radius: 20px;
-      background: rgba(255,255,255,.7);
+      background: rgba(255,255,255,.75);
       font-size: 13px;
       font-weight: 700;
     }
@@ -89,14 +89,13 @@
       border: 0;
       border-radius: 9px;
       padding: 9px 13px;
-      cursor: pointer;
       font-weight: 700;
       background: white;
     }
 
     .container {
       max-width: 1200px;
-      margin: 0 auto;
+      margin: auto;
       padding: 30px 18px 60px;
     }
 
@@ -109,7 +108,6 @@
       margin: 0;
       font-size: 36px;
       font-weight: 900;
-      color: #222;
     }
 
     .hero p {
@@ -119,7 +117,7 @@
       font-size: 16px;
     }
 
-    .search-box {
+    .box {
       background: white;
       border-radius: 18px;
       padding: 18px;
@@ -151,12 +149,7 @@
       padding: 0 25px;
       background: #ffe600;
       font-weight: 900;
-      cursor: pointer;
       font-size: 16px;
-    }
-
-    .search-button:hover {
-      filter: brightness(.96);
     }
 
     .affiliate-box {
@@ -188,24 +181,101 @@
       padding: 12px;
       border: 1px solid #ccc;
       border-radius: 9px;
-      outline: none;
       font-size: 14px;
     }
 
     .affiliate-row button {
       border: 0;
       border-radius: 9px;
-      padding: 0 17px;
+      padding: 0 18px;
       background: #222;
       color: white;
       font-weight: 800;
-      cursor: pointer;
+    }
+
+    /* PROMOÇÕES DO DIA */
+
+    .daily-box {
+      background: linear-gradient(135deg, #fff 0%, #fffbea 100%);
+      border: 2px solid #ffe600;
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 25px;
+      box-shadow: 0 5px 25px rgba(0,0,0,.07);
+    }
+
+    .daily-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+    }
+
+    .daily-title {
+      margin: 0;
+      font-size: 25px;
+    }
+
+    .daily-subtitle {
+      color: #666;
+      font-size: 14px;
+      margin-top: 7px;
+    }
+
+    .daily-button {
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 20px;
+      background: #ffe600;
+      font-weight: 900;
+      font-size: 15px;
+      white-space: nowrap;
+    }
+
+    .category-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .category-button {
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      padding: 9px 13px;
+      background: white;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .category-button.active {
+      background: #222;
+      color: #ffe600;
+      border-color: #222;
+    }
+
+    .daily-loading {
+      display: none;
+      margin-top: 15px;
+      text-align: center;
+      font-weight: 800;
+      padding: 15px;
+    }
+
+    .daily-loading.show {
+      display: block;
+    }
+
+    .daily-note {
+      margin-top: 15px;
+      color: #777;
+      font-size: 12px;
     }
 
     .notice {
       display: none;
       margin-top: 15px;
-      padding: 13px 15px;
+      padding: 13px;
       border-radius: 10px;
       background: #fff3cd;
       color: #765c00;
@@ -213,6 +283,31 @@
     }
 
     .notice.show {
+      display: block;
+    }
+
+    .error {
+      display: none;
+      padding: 15px;
+      border-radius: 12px;
+      background: #ffe3e3;
+      color: #9d2222;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+
+    .error.show {
+      display: block;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 30px;
+      font-weight: 700;
+    }
+
+    .loading.show {
       display: block;
     }
 
@@ -232,32 +327,6 @@
     .results-count {
       color: #666;
       font-size: 14px;
-    }
-
-    .loading {
-      display: none;
-      text-align: center;
-      padding: 30px;
-      font-weight: 700;
-      color: #555;
-    }
-
-    .loading.show {
-      display: block;
-    }
-
-    .error {
-      display: none;
-      padding: 15px;
-      border-radius: 12px;
-      background: #ffe3e3;
-      color: #9d2222;
-      margin-bottom: 20px;
-      font-weight: 700;
-    }
-
-    .error.show {
-      display: block;
     }
 
     .empty {
@@ -287,7 +356,7 @@
       display: flex;
       flex-direction: column;
       min-width: 0;
-      transition: transform .15s ease, box-shadow .15s ease;
+      transition: .15s;
     }
 
     .card:hover {
@@ -321,7 +390,6 @@
       padding: 7px 10px;
       font-size: 12px;
       font-weight: 900;
-      box-shadow: 0 2px 8px rgba(0,0,0,.15);
     }
 
     .score-badge {
@@ -355,20 +423,17 @@
       color: #888;
       text-decoration: line-through;
       font-size: 13px;
-      min-height: 18px;
     }
 
     .price {
       font-size: 25px;
       font-weight: 900;
-      margin-top: 2px;
-      color: #222;
+      margin-top: 3px;
     }
 
     .price-range {
-      font-size: 14px;
-      color: #555;
-      margin-top: 5px;
+      font-size: 13px;
+      color: #666;
     }
 
     .no-price {
@@ -449,14 +514,12 @@
       border: 0;
       border-radius: 10px;
       padding: 11px 8px;
-      cursor: pointer;
       font-weight: 800;
       font-size: 12px;
     }
 
     .action.primary {
       background: #ffe600;
-      color: #222;
     }
 
     .action.dark {
@@ -468,10 +531,6 @@
       background: #39a852;
       color: white;
       grid-column: span 2;
-    }
-
-    .action:hover {
-      filter: brightness(.96);
     }
 
     .footer {
@@ -503,94 +562,9 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    .daily-box {
-      background: white;
-      border-radius: 18px;
-      padding: 18px;
-      box-shadow: 0 5px 25px rgba(0,0,0,.08);
-      margin: 20px 0 25px;
-      border: 2px solid #ffe600;
-    }
-
-    .daily-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 15px;
-      margin-bottom: 12px;
-    }
-
-    .daily-title {
-      font-size: 22px;
-      font-weight: 900;
-      margin: 0;
-    }
-
-    .daily-subtitle {
-      color: #666;
-      font-size: 13px;
-      margin-top: 5px;
-    }
-
-    .daily-button {
-      border: 0;
-      border-radius: 11px;
-      padding: 12px 16px;
-      background: #222;
-      color: white;
-      font-weight: 900;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    .daily-button:hover {
-      filter: brightness(.94);
-    }
-
-    .category-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 14px;
-    }
-
-    .category-button {
-      border: 1px solid #ddd;
-      background: #f7f7f7;
-      color: #333;
-      border-radius: 999px;
-      padding: 8px 12px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .category-button.active {
-      background: #ffe600;
-      border-color: #ffe600;
-    }
-
-    .daily-loading {
-      display: none;
-      margin-top: 12px;
-      color: #555;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .daily-loading.show {
-      display: block;
-    }
-
-    .daily-note {
-      margin-top: 10px;
-      font-size: 12px;
-      color: #777;
-    }
-
     @media (max-width: 900px) {
       .grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0,1fr));
       }
     }
 
@@ -612,16 +586,17 @@
         flex-direction: column;
       }
 
-      .search-button {
-        padding: 14px;
-      }
-
       .affiliate-row {
         flex-direction: column;
       }
 
-      .affiliate-row button {
-        padding: 12px;
+      .daily-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .daily-button {
+        width: 100%;
       }
 
       .grid {
@@ -637,202 +612,251 @@
 
 <body>
 
-  <header class="topbar">
-    <div class="topbar-inner">
+<header class="topbar">
+  <div class="topbar-inner">
 
-      <div class="brand">
-        <img src="/logo.png" alt="Radar MercadoLivre">
-        <span>Radar MercadoLivre</span>
+    <div class="brand">
+      <img src="/logo.png" alt="Radar MercadoLivre">
+      <span>Radar MercadoLivre</span>
+    </div>
+
+    <div class="connection">
+
+      <div id="status" class="status disconnected">
+        Mercado Livre não conectado
       </div>
 
-      <div class="connection">
-        <div id="status" class="status disconnected">
-          Mercado Livre não conectado
-        </div>
+      <button
+        id="connectBtn"
+        class="btn-small"
+        onclick="connectMercadoLivre()"
+      >
+        Conectar
+      </button>
 
-        <button
-          id="connectBtn"
-          class="btn-small"
-          onclick="connectMercadoLivre()"
-        >
-          Conectar
-        </button>
-
-        <button
-          id="logoutBtn"
-          class="btn-small"
-          style="display:none"
-          onclick="logoutMercadoLivre()"
-        >
-          Sair
-        </button>
-      </div>
+      <button
+        id="logoutBtn"
+        class="btn-small"
+        style="display:none"
+        onclick="logoutMercadoLivre()"
+      >
+        Sair
+      </button>
 
     </div>
-  </header>
+
+  </div>
+</header>
 
 
-  <main class="container">
+<main class="container">
 
-    <section class="hero">
+  <section class="hero">
 
-      <h1>🔥 Caçador de Promoções</h1>
+    <h1>🔥 Caçador de Promoções</h1>
 
-      <p>
-        Encontre oportunidades no Mercado Livre,
-        analise os produtos e prepare seu conteúdo
-        para divulgação como afiliado.
-      </p>
+    <p>
+      Encontre oportunidades no Mercado Livre,
+      analise os produtos e prepare seu conteúdo
+      para divulgação como afiliado.
+    </p>
 
-    </section>
+  </section>
 
 
-    <section class="search-box">
+  <!-- BUSCA MANUAL -->
 
-      <div class="search-row">
+  <section class="box">
+
+    <div class="search-row">
+
+      <input
+        id="searchInput"
+        type="text"
+        placeholder="Ex.: air fryer, tênis, celular, cafeteira..."
+        autocomplete="off"
+      >
+
+      <button
+        class="search-button"
+        onclick="searchProducts()"
+      >
+        🔎 BUSCAR OFERTAS
+      </button>
+
+    </div>
+
+
+    <div class="affiliate-box">
+
+      <div class="affiliate-title">
+        🔗 Seu link de afiliado
+      </div>
+
+      <div class="affiliate-help">
+        Cole aqui seu link de afiliado gerado oficialmente
+        pela Central/Gerador de Links do Mercado Livre.
+      </div>
+
+      <div class="affiliate-row">
 
         <input
-          id="searchInput"
+          id="affiliateLink"
           type="text"
-          placeholder="Ex.: air fryer, tênis, celular, cafeteira..."
-          autocomplete="off"
+          placeholder="Cole aqui seu link de afiliado..."
         >
 
-        <button
-          class="search-button"
-          onclick="searchProducts()"
-        >
-          🔎 BUSCAR OFERTAS
+        <button onclick="saveAffiliateLink()">
+          SALVAR
         </button>
 
       </div>
 
-
-      <div class="affiliate-box">
-
-        <div class="affiliate-title">
-          🔗 Seu link de afiliado
-        </div>
-
-        <div class="affiliate-help">
-          Cole aqui um link de afiliado gerado oficialmente
-          pela Central/Gerador de Links do Mercado Livre.
-          O Radar usará esse link nos textos copiados.
-        </div>
-
-        <div class="affiliate-row">
-
-          <input
-            id="affiliateLink"
-            type="text"
-            placeholder="Cole aqui seu link de afiliado..."
-          >
-
-          <button onclick="saveAffiliateLink()">
-            SALVAR
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <div id="notice" class="notice"></div>
-
-    </section>
-
-
-    <section class="daily-box">
-
-      <div class="daily-head">
-        <div>
-          <h2 class="daily-title">🔥 PROMOÇÕES DO DIA</h2>
-          <div class="daily-subtitle">
-            O Radar pesquisa automaticamente várias categorias e organiza as melhores oportunidades encontradas.
-          </div>
-        </div>
-
-        <button
-          class="daily-button"
-          onclick="loadDailyPromotions()"
-        >
-          🚀 ENCONTRAR OFERTAS
-        </button>
-      </div>
-
-      <div class="category-row">
-        <button class="category-button active" data-category="all" onclick="selectDailyCategory(this, 'all')">🔥 Todas</button>
-        <button class="category-button" data-category="celulares" onclick="selectDailyCategory(this, 'celulares')">📱 Celulares</button>
-        <button class="category-button" data-category="eletronicos" onclick="selectDailyCategory(this, 'eletronicos')">🎧 Eletrônicos</button>
-        <button class="category-button" data-category="casa" onclick="selectDailyCategory(this, 'casa')">🏠 Casa</button>
-        <button class="category-button" data-category="informatica" onclick="selectDailyCategory(this, 'informatica')">💻 Informática</button>
-        <button class="category-button" data-category="games" onclick="selectDailyCategory(this, 'games')">🎮 Games</button>
-        <button class="category-button" data-category="moda" onclick="selectDailyCategory(this, 'moda')">👕 Moda</button>
-      </div>
-
-      <div id="dailyLoading" class="daily-loading">
-        🔎 Caçando ofertas em várias categorias...
-      </div>
-
-      <div class="daily-note">
-        Os dados e preços dependem do que o Mercado Livre disponibiliza para cada produto naquele momento.
-      </div>
-
-    </section>
-
-    <div id="error" class="error"></div>
-
-
-    <div id="loading" class="loading">
-      🔎 Procurando oportunidades...
     </div>
 
 
-    <section>
+    <div id="notice" class="notice"></div>
 
-      <div class="results-header">
+  </section>
 
-        <h2>
-          🔥 Melhores oportunidades
+
+  <!-- PROMOÇÕES DO DIA -->
+
+  <section class="daily-box">
+
+    <div class="daily-head">
+
+      <div>
+
+        <h2 class="daily-title">
+          🔥 PROMOÇÕES DO DIA
         </h2>
 
-        <div
-          id="resultsCount"
-          class="results-count"
-        >
-          Nenhuma busca realizada
+        <div class="daily-subtitle">
+          O Radar pesquisa automaticamente várias categorias
+          e organiza as oportunidades encontradas.
         </div>
 
       </div>
 
-
-      <div
-        id="empty"
-        class="empty"
+      <button
+        class="daily-button"
+        onclick="loadDailyPromotions()"
       >
-        Digite um produto acima para começar a procurar oportunidades.
-      </div>
+        🚀 ENCONTRAR OFERTAS
+      </button>
 
-
-      <div
-        id="grid"
-        class="grid"
-      ></div>
-
-    </section>
-
-
-    <div class="footer">
-      Radar MercadoLivre • Ferramenta de análise para afiliados
     </div>
 
-  </main>
+
+    <div class="category-row">
+
+      <button
+        class="category-button active"
+        onclick="selectDailyCategory(this, 'Todas')"
+      >
+        🔥 Todas
+      </button>
+
+      <button
+        class="category-button"
+        onclick="selectDailyCategory(this, '📱 Celulares')"
+      >
+        📱 Celulares
+      </button>
+
+      <button
+        class="category-button"
+        onclick="selectDailyCategory(this, '🎧 Eletrônicos')"
+      >
+        🎧 Eletrônicos
+      </button>
+
+      <button
+        class="category-button"
+        onclick="selectDailyCategory(this, '🏠 Casa')"
+      >
+        🏠 Casa
+      </button>
+
+      <button
+        class="category-button"
+        onclick="selectDailyCategory(this, '💻 Informática')"
+      >
+        💻 Informática
+      </button>
+
+      <button
+        class="category-button"
+        onclick="selectDailyCategory(this, '🎮 Games')"
+      >
+        🎮 Games
+      </button>
+
+      <button
+        class="category-button"
+        onclick="selectDailyCategory(this, '👕 Moda')"
+      >
+        👕 Moda
+      </button>
+
+    </div>
 
 
-  <div
-    id="toast"
-    class="toast"
-  ></div>
+    <div id="dailyLoading" class="daily-loading">
+      🔎 Caçando ofertas...
+    </div>
+
+
+    <div class="daily-note">
+      Os preços e dados dependem das informações disponibilizadas
+      pelo Mercado Livre no momento da consulta.
+    </div>
+
+  </section>
+
+
+  <div id="error" class="error"></div>
+
+
+  <div id="loading" class="loading">
+    🔎 Procurando oportunidades...
+  </div>
+
+
+  <section>
+
+    <div class="results-header">
+
+      <h2>
+        🔥 Melhores oportunidades
+      </h2>
+
+      <div id="resultsCount" class="results-count">
+        Nenhuma busca realizada
+      </div>
+
+    </div>
+
+
+    <div id="empty" class="empty">
+      Digite um produto ou use Promoções do Dia para começar.
+    </div>
+
+
+    <div id="grid" class="grid"></div>
+
+  </section>
+
+
+  <div class="footer">
+    Radar MercadoLivre • Ferramenta de análise para afiliados
+  </div>
+
+</main>
+
+
+<div id="toast" class="toast"></div>
 
 
 <script>
@@ -840,7 +864,8 @@
   let currentProducts = [];
 
   let affiliateLink = "";
-  let selectedDailyCategory = "all";
+
+  let selectedDailyCategory = "Todas";
 
 
   // =========================================================
@@ -849,7 +874,10 @@
 
   function escapeHtml(value) {
 
-    if (value === null || value === undefined) {
+    if (
+      value === null ||
+      value === undefined
+    ) {
       return "";
     }
 
@@ -864,42 +892,56 @@
 
   function formatMoney(value) {
 
-    if (typeof value !== "number") {
+    if (
+      typeof value !== "number" ||
+      !Number.isFinite(value)
+    ) {
       return null;
     }
 
-    return value.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL"
-    });
+    return value.toLocaleString(
+      "pt-BR",
+      {
+        style: "currency",
+        currency: "BRL"
+      }
+    );
   }
 
 
   function showToast(message) {
 
-    const toast = document.getElementById("toast");
+    const toast =
+      document.getElementById("toast");
 
     toast.textContent = message;
 
     toast.classList.add("show");
 
-    setTimeout(() => {
-      toast.classList.remove("show");
-    }, 2500);
+    setTimeout(
+      () => {
+        toast.classList.remove("show");
+      },
+      2500
+    );
   }
 
 
   function showNotice(message) {
 
-    const notice = document.getElementById("notice");
+    const notice =
+      document.getElementById("notice");
 
     notice.textContent = message;
 
     notice.classList.add("show");
 
-    setTimeout(() => {
-      notice.classList.remove("show");
-    }, 5000);
+    setTimeout(
+      () => {
+        notice.classList.remove("show");
+      },
+      5000
+    );
   }
 
 
@@ -912,7 +954,9 @@
     try {
 
       const saved =
-        localStorage.getItem("radarAffiliateLink");
+        localStorage.getItem(
+          "radarAffiliateLink"
+        );
 
       if (saved) {
 
@@ -921,13 +965,12 @@
         document.getElementById(
           "affiliateLink"
         ).value = saved;
+
       }
 
     } catch (error) {
 
-      console.log(
-        "Não foi possível carregar o link salvo."
-      );
+      console.error(error);
 
     }
 
@@ -937,7 +980,9 @@
   function saveAffiliateLink() {
 
     const input =
-      document.getElementById("affiliateLink");
+      document.getElementById(
+        "affiliateLink"
+      );
 
     const value =
       input.value.trim();
@@ -945,12 +990,11 @@
     if (!value) {
 
       showNotice(
-        "Cole primeiro seu link oficial de afiliado."
+        "Cole primeiro seu link de afiliado."
       );
 
       return;
     }
-
 
     affiliateLink = value;
 
@@ -974,98 +1018,10 @@
   // CONEXÃO MERCADO LIVRE
   // =========================================================
 
-  async function checkConnection() {
+  function connectMercadoLivre() {
 
-    try {
-
-      const response =
-        await fetch("/api/ml/me");
-
-      if (!response.ok) {
-
-        setDisconnected();
-
-        return;
-      }
-
-      const data =
-        await response.json();
-
-      if (data && data.nickname) {
-
-        setConnected(
-          data.nickname,
-          data.id
-        );
-
-      } else {
-
-        setDisconnected();
-
-      }
-
-    } catch (error) {
-
-      setDisconnected();
-
-    }
-
-  }
-
-
-  function setConnected(
-    nickname,
-    id
-  ) {
-
-    const status =
-      document.getElementById("status");
-
-    status.textContent =
-      "🟢 Conectado: " + nickname;
-
-    status.className =
-      "status connected";
-
-    document.getElementById(
-      "connectBtn"
-    ).style.display = "none";
-
-    document.getElementById(
-      "logoutBtn"
-    ).style.display = "block";
-
-  }
-
-
-  function setDisconnected() {
-
-    const status =
-      document.getElementById("status");
-
-    status.textContent =
-      "Mercado Livre não conectado";
-
-    status.className =
-      "status disconnected";
-
-    document.getElementById(
-      "connectBtn"
-    ).style.display = "block";
-
-    document.getElementById(
-      "logoutBtn"
-    ).style.display = "none";
-
-  }
-
-
-  async function connectMercadoLivre() {
-
-    // O endpoint /api/ml/start já faz o
-    // redirecionamento diretamente para o
-    // Mercado Livre.
-    window.location.href = "/api/ml/start";
+    window.location.href =
+      "/api/ml/start";
 
   }
 
@@ -1092,45 +1048,162 @@
   }
 
 
+  function setConnected(
+    nickname,
+    id
+  ) {
+
+    const status =
+      document.getElementById(
+        "status"
+      );
+
+    status.textContent =
+      "🟢 Conectado: " +
+      nickname;
+
+    status.className =
+      "status connected";
+
+    document.getElementById(
+      "connectBtn"
+    ).style.display = "none";
+
+    document.getElementById(
+      "logoutBtn"
+    ).style.display = "block";
+
+  }
+
+
+  function setDisconnected() {
+
+    const status =
+      document.getElementById(
+        "status"
+      );
+
+    status.textContent =
+      "Mercado Livre não conectado";
+
+    status.className =
+      "status disconnected";
+
+    document.getElementById(
+      "connectBtn"
+    ).style.display = "block";
+
+    document.getElementById(
+      "logoutBtn"
+    ).style.display = "none";
+
+  }
+
+
+  async function checkConnection() {
+
+    try {
+
+      const response =
+        await fetch(
+          "/api/ml/me"
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        data &&
+        data.connected &&
+        data.user
+      ) {
+
+        setConnected(
+          data.user.nickname,
+          data.user.id
+        );
+
+      } else {
+
+        setDisconnected();
+
+      }
+
+    } catch (error) {
+
+      console.error(error);
+
+      setDisconnected();
+
+    }
+
+  }
+
+
   // =========================================================
-  // BUSCA
+  // BUSCA MANUAL
   // =========================================================
 
   async function searchProducts() {
 
     const input =
-      document.getElementById("searchInput");
+      document.getElementById(
+        "searchInput"
+      );
 
     const query =
       input.value.trim();
 
     const errorBox =
-      document.getElementById("error");
+      document.getElementById(
+        "error"
+      );
 
     const loading =
-      document.getElementById("loading");
+      document.getElementById(
+        "loading"
+      );
+
+    const dailyLoading =
+      document.getElementById(
+        "dailyLoading"
+      );
 
     const grid =
-      document.getElementById("grid");
+      document.getElementById(
+        "grid"
+      );
 
     const empty =
-      document.getElementById("empty");
+      document.getElementById(
+        "empty"
+      );
 
     const resultsCount =
-      document.getElementById("resultsCount");
+      document.getElementById(
+        "resultsCount"
+      );
 
 
-    errorBox.classList.remove("show");
+    errorBox.classList.remove(
+      "show"
+    );
 
-    empty.classList.remove("show");
+    empty.classList.remove(
+      "show"
+    );
 
     grid.innerHTML = "";
+
+    dailyLoading.classList.remove(
+      "show"
+    );
 
 
     if (!query) {
 
       showToast(
-        "Digite o que você quer procurar."
+        "Digite o produto que deseja procurar."
       );
 
       return;
@@ -1138,7 +1211,9 @@
     }
 
 
-    loading.classList.add("show");
+    loading.classList.add(
+      "show"
+    );
 
     resultsCount.textContent =
       "Procurando...";
@@ -1168,7 +1243,9 @@
 
 
       currentProducts =
-        Array.isArray(data.results)
+        Array.isArray(
+          data.results
+        )
           ? data.results
           : [];
 
@@ -1178,12 +1255,16 @@
         " oportunidades encontradas";
 
 
-      if (!currentProducts.length) {
+      if (
+        !currentProducts.length
+      ) {
 
         empty.textContent =
           "Não encontramos produtos para essa busca.";
 
-        empty.classList.add("show");
+        empty.classList.add(
+          "show"
+        );
 
         return;
 
@@ -1200,30 +1281,229 @@
       console.error(error);
 
       errorBox.textContent =
-        "❌ " + error.message;
+        "❌ " +
+        error.message;
 
-      errorBox.classList.add("show");
+      errorBox.classList.add(
+        "show"
+      );
 
       resultsCount.textContent =
         "Erro na busca";
 
     } finally {
 
-      loading.classList.remove("show");
+      loading.classList.remove(
+        "show"
+      );
 
     }
 
   }
-\n\n  // =========================================================\n  // PROMOÇÕES DO DIA\n  // =========================================================\n\n  function selectDailyCategory(button, category) {\n\n    selectedDailyCategory = category;\n\n    document.querySelectorAll(".category-button").forEach((item) => {\n      item.classList.remove("active");\n    });\n\n    button.classList.add("active");\n\n    loadDailyPromotions(category);\n\n  }\n\n\n  async function loadDailyPromotions(category = selectedDailyCategory) {\n\n    selectedDailyCategory = category;\n\n    const errorBox = document.getElementById("error");\n    const empty = document.getElementById("empty");\n    const loading = document.getElementById("loading");\n    const dailyLoading = document.getElementById("dailyLoading");\n    const grid = document.getElementById("grid");\n    const resultsCount = document.getElementById("resultsCount");\n\n    errorBox.classList.remove("show");\n    empty.classList.remove("show");\n    grid.innerHTML = "";\n    loading.classList.remove("show");\n    dailyLoading.classList.add("show");\n    resultsCount.textContent = "Caçando ofertas...";\n\n    try {\n\n      const response = await fetch(\n        "/api/ml_promocoes?category=" + encodeURIComponent(category)\n      );\n\n      const data = await response.json();\n\n      if (!response.ok) {\n        throw new Error(data.error || "Erro ao encontrar ofertas.");\n      }\n\n      currentProducts = Array.isArray(data.results) ? data.results : [];\n\n      resultsCount.textContent =\n        currentProducts.length + " oportunidades encontradas";\n\n      if (!currentProducts.length) {\n        empty.textContent = "Não encontramos oportunidades suficientes nessa categoria agora.";\n        empty.classList.add("show");\n        return;\n      }\n\n      renderProducts(currentProducts);\n\n      showToast("🔥 Ofertas encontradas e organizadas pelo Radar!");\n\n    } catch (error) {\n\n      console.error(error);\n\n      errorBox.textContent = "❌ " + error.message;\n      errorBox.classList.add("show");\n      resultsCount.textContent = "Erro nas promoções";\n\n    } finally {\n\n      dailyLoading.classList.remove("show");\n\n    }\n\n  }\n
+
 
   // =========================================================
-  // RENDER DOS PRODUTOS
+  // PROMOÇÕES DO DIA
   // =========================================================
 
-  function renderProducts(products) {
+  function selectDailyCategory(
+    button,
+    category
+  ) {
+
+    selectedDailyCategory =
+      category;
+
+
+    document
+      .querySelectorAll(
+        ".category-button"
+      )
+      .forEach(
+        item => {
+          item.classList.remove(
+            "active"
+          );
+        }
+      );
+
+
+    button.classList.add(
+      "active"
+    );
+
+
+    loadDailyPromotions(
+      category
+    );
+
+  }
+
+
+  async function loadDailyPromotions(
+    category =
+      selectedDailyCategory
+  ) {
+
+    selectedDailyCategory =
+      category;
+
+
+    const errorBox =
+      document.getElementById(
+        "error"
+      );
+
+    const empty =
+      document.getElementById(
+        "empty"
+      );
+
+    const loading =
+      document.getElementById(
+        "loading"
+      );
+
+    const dailyLoading =
+      document.getElementById(
+        "dailyLoading"
+      );
 
     const grid =
-      document.getElementById("grid");
+      document.getElementById(
+        "grid"
+      );
+
+    const resultsCount =
+      document.getElementById(
+        "resultsCount"
+      );
+
+
+    errorBox.classList.remove(
+      "show"
+    );
+
+    empty.classList.remove(
+      "show"
+    );
+
+    grid.innerHTML = "";
+
+    loading.classList.remove(
+      "show"
+    );
+
+    dailyLoading.classList.add(
+      "show"
+    );
+
+    resultsCount.textContent =
+      "Caçando ofertas...";
+
+
+    try {
+
+      const response =
+        await fetch(
+          "/api/ml_promocoes?categoria=" +
+          encodeURIComponent(
+            category
+          )
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          data.error ||
+          "Erro ao encontrar ofertas."
+        );
+
+      }
+
+
+      currentProducts =
+        Array.isArray(
+          data.results
+        )
+          ? data.results
+          : [];
+
+
+      resultsCount.textContent =
+        currentProducts.length +
+        " oportunidades encontradas";
+
+
+      if (
+        !currentProducts.length
+      ) {
+
+        empty.textContent =
+          "Não encontramos oportunidades suficientes nessa categoria agora.";
+
+        empty.classList.add(
+          "show"
+        );
+
+        return;
+
+      }
+
+
+      renderProducts(
+        currentProducts
+      );
+
+
+      showToast(
+        "🔥 Ofertas encontradas!"
+      );
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      errorBox.textContent =
+        "❌ " +
+        error.message;
+
+      errorBox.classList.add(
+        "show"
+      );
+
+      resultsCount.textContent =
+        "Erro nas promoções";
+
+    } finally {
+
+      dailyLoading.classList.remove(
+        "show"
+      );
+
+    }
+
+  }
+
+
+  // =========================================================
+  // RENDER PRODUTOS
+  // =========================================================
+
+  function renderProducts(
+    products
+  ) {
+
+    const grid =
+      document.getElementById(
+        "grid"
+      );
 
     grid.innerHTML = "";
 
@@ -1250,7 +1530,9 @@
   ) {
 
     const card =
-      document.createElement("article");
+      document.createElement(
+        "article"
+      );
 
     card.className =
       "card";
@@ -1297,22 +1579,29 @@
     if (price) {
 
       priceHtml = `
+
         ${
           originalPrice
-            ? `<div class="price-old">
-                ${escapeHtml(originalPrice)}
-              </div>`
+            ? `
+              <div class="price-old">
+                ${escapeHtml(
+                  originalPrice
+                )}
+              </div>
+            `
             : ""
         }
 
         <div class="price">
           ${escapeHtml(price)}
         </div>
+
       `;
 
     } else if (priceMin) {
 
       priceHtml = `
+
         <div class="price-range">
           A partir de
         </div>
@@ -1320,14 +1609,17 @@
         <div class="price">
           ${escapeHtml(priceMin)}
         </div>
+
       `;
 
     } else {
 
       priceHtml = `
+
         <div class="no-price">
           Preço indisponível
         </div>
+
       `;
 
     }
@@ -1336,56 +1628,78 @@
     let badges = "";
 
 
-    if (discount !== null) {
+    if (
+      discount !== null
+    ) {
 
       badges += `
+
         <span class="tag discount">
           🔥 ${discount}% OFF
         </span>
-      `;
 
-    }
-
-
-    if (product.has_winner) {
-
-      badges += `
-        <span class="tag winner">
-          🏆 Anúncio vencedor
-        </span>
-      `;
-
-    } else {
-
-      badges += `
-        <span class="tag">
-          Sem anúncio vencedor
-        </span>
-      `;
-
-    }
-
-
-    if (product.free_shipping) {
-
-      badges += `
-        <span class="tag shipping">
-          🚚 Frete grátis
-        </span>
       `;
 
     }
 
 
     if (
-      typeof product.sold_quantity === "number" &&
+      product.has_winner
+    ) {
+
+      badges += `
+
+        <span class="tag winner">
+          🏆 Anúncio vencedor
+        </span>
+
+      `;
+
+    } else {
+
+      badges += `
+
+        <span class="tag">
+          Sem anúncio vencedor
+        </span>
+
+      `;
+
+    }
+
+
+    if (
+      product.free_shipping
+    ) {
+
+      badges += `
+
+        <span class="tag shipping">
+          🚚 Frete grátis
+        </span>
+
+      `;
+
+    }
+
+
+    if (
+      typeof product.sold_quantity ===
+      "number" &&
       product.sold_quantity > 0
     ) {
 
       badges += `
+
         <span class="tag">
-          🛒 ${product.sold_quantity.toLocaleString("pt-BR")} vendidos
+          🛒 ${
+            product.sold_quantity
+              .toLocaleString(
+                "pt-BR"
+              )
+          } vendidos
         </span>
+
       `;
 
     }
@@ -1393,9 +1707,11 @@
 
     const discountBadge =
       discount !== null
-        ? `<div class="deal-badge">
+        ? `
+          <div class="deal-badge">
             🔥 ${discount}% OFF
-           </div>`
+          </div>
+        `
         : "";
 
 
@@ -1412,7 +1728,9 @@
         <img
           class="product-image"
           src="${escapeHtml(image)}"
-          alt="${escapeHtml(product.title)}"
+          alt="${escapeHtml(
+            product.title
+          )}"
           loading="lazy"
         >
 
@@ -1422,7 +1740,9 @@
       <div class="card-content">
 
         <div class="product-title">
-          ${escapeHtml(product.title)}
+          ${escapeHtml(
+            product.title
+          )}
         </div>
 
 
@@ -1434,7 +1754,12 @@
           ${badges}
 
           <span class="tag">
-            ✓ ${escapeHtml(product.condition || "Novo")}
+            ✓ ${
+              escapeHtml(
+                product.condition ||
+                "Novo"
+              )
+            }
           </span>
 
         </div>
@@ -1508,17 +1833,22 @@
   // ABRIR PRODUTO
   // =========================================================
 
-  function openProduct(index) {
+  function openProduct(
+    index
+  ) {
 
     const product =
       currentProducts[index];
+
 
     if (!product) {
       return;
     }
 
 
-    if (!product.permalink) {
+    if (
+      !product.permalink
+    ) {
 
       showToast(
         "Link do produto indisponível."
@@ -1541,10 +1871,13 @@
   // COPIAR LINK
   // =========================================================
 
-  async function copyProductLink(index) {
+  async function copyProductLink(
+    index
+  ) {
 
     const product =
       currentProducts[index];
+
 
     if (!product) {
       return;
@@ -1553,7 +1886,19 @@
 
     const link =
       affiliateLink ||
-      product.permalink;
+      product.permalink ||
+      "";
+
+
+    if (!link) {
+
+      showToast(
+        "Não existe link disponível."
+      );
+
+      return;
+
+    }
 
 
     try {
@@ -1562,16 +1907,19 @@
         link
       );
 
-      if (affiliateLink) {
+
+      if (
+        affiliateLink
+      ) {
 
         showToast(
-          "🔗 Seu link de afiliado foi copiado!"
+          "🔗 Link de afiliado copiado!"
         );
 
       } else {
 
         showToast(
-          "🔗 Link do produto copiado. Salve seu link de afiliado acima para usar o link de afiliado."
+          "🔗 Link do produto copiado!"
         );
 
       }
@@ -1579,7 +1927,7 @@
     } catch (error) {
 
       showToast(
-        "Não foi possível copiar o link."
+        "Não foi possível copiar."
       );
 
     }
@@ -1588,10 +1936,12 @@
 
 
   // =========================================================
-  // GERAR TEXTO FACEBOOK
+  // POST FACEBOOK
   // =========================================================
 
-  function generateFacebookPost(product) {
+  function generateFacebookPost(
+    product
+  ) {
 
     const price =
       formatMoney(
@@ -1615,41 +1965,56 @@
       "Confira o preço no anúncio.";
 
 
-    if (price && originalPrice) {
+    if (
+      price &&
+      originalPrice
+    ) {
 
       priceText =
-        `De ${originalPrice} por ${price}`;
+        "De " +
+        originalPrice +
+        " por " +
+        price;
 
     } else if (price) {
 
       priceText =
-        `Por apenas ${price}`;
+        "Por apenas " +
+        price;
 
     } else if (priceMin) {
 
       priceText =
-        `A partir de ${priceMin}`;
+        "A partir de " +
+        priceMin;
 
     }
 
 
-    let discountText = "";
+    let discountText =
+      "";
 
 
     if (
-      typeof product.discount === "number"
+      typeof product.discount ===
+      "number"
     ) {
 
       discountText =
-        `\n🔥 ${product.discount}% OFF`;
+        "\n🔥 " +
+        product.discount +
+        "% OFF";
 
     }
 
 
-    let shippingText = "";
+    let shippingText =
+      "";
 
 
-    if (product.free_shipping) {
+    if (
+      product.free_shipping
+    ) {
 
       shippingText =
         "\n🚚 Frete grátis";
@@ -1663,12 +2028,6 @@
       "";
 
 
-    const affiliateNotice =
-      affiliateLink
-        ? ""
-        : "\n\n⚠️ Cole seu link de afiliado antes de publicar.";
-
-
     const post = `
 
 🔥 OFERTA ENCONTRADA!
@@ -1680,7 +2039,7 @@
 👉 Confira a oferta:
 ${link}
 
-⚠️ Preço e disponibilidade podem mudar.${affiliateNotice}
+⚠️ Preço e disponibilidade podem mudar.
 
     `.trim();
 
@@ -1690,10 +2049,13 @@ ${link}
   }
 
 
-  async function copyFacebookPost(index) {
+  async function copyFacebookPost(
+    index
+  ) {
 
     const product =
       currentProducts[index];
+
 
     if (!product) {
       return;
@@ -1713,19 +2075,9 @@ ${link}
       );
 
 
-      if (affiliateLink) {
-
-        showToast(
-          "📱 Post completo copiado com seu link de afiliado!"
-        );
-
-      } else {
-
-        showToast(
-          "📋 Post copiado. Cole seu link de afiliado antes de publicar."
-        );
-
-      }
+      showToast(
+        "📱 Post copiado!"
+      );
 
     } catch (error) {
 
@@ -1743,7 +2095,9 @@ ${link}
   // =========================================================
 
   document
-    .getElementById("searchInput")
+    .getElementById(
+      "searchInput"
+    )
     .addEventListener(
       "keydown",
       function(event) {
@@ -1759,218 +2113,169 @@ ${link}
       }
     );
 
-// =========================================================
-// FINALIZAÇÃO DO OAUTH DO MERCADO LIVRE
-// =========================================================
 
-async function handleOAuthCallback() {
+  // =========================================================
+  // OAUTH
+  // =========================================================
 
-  const params =
-    new URLSearchParams(
-      window.location.search
-    );
+  async function handleOAuthCallback() {
 
-  const code =
-    params.get("code");
-
-  const state =
-    params.get("state");
-
-  const oauthError =
-    params.get("error");
-
-
-  // Se o usuário cancelou a autorização
-  if (oauthError) {
-
-    showNotice(
-      "❌ A autorização do Mercado Livre foi cancelada."
-    );
-
-    window.history.replaceState(
-      {},
-      document.title,
-      window.location.pathname
-    );
-
-    return false;
-  }
-
-
-  // Não estamos voltando do Mercado Livre
-  if (!code) {
-    return false;
-  }
-
-
-  showNotice(
-    "🔄 Finalizando conexão com o Mercado Livre..."
-  );
-
-
-  try {
-
-    const response =
-      await fetch(
-        "/api/ml/exchange?code=" +
-        encodeURIComponent(code) +
-        "&state=" +
-        encodeURIComponent(state || "")
+    const params =
+      new URLSearchParams(
+        window.location.search
       );
 
 
-    const data =
-      await response.json();
+    const code =
+      params.get("code");
 
 
-    if (!response.ok) {
+    const state =
+      params.get("state");
 
-      throw new Error(
-        data.error ||
-        "Não foi possível finalizar a conexão."
+
+    const oauthError =
+      params.get("error");
+
+
+    if (oauthError) {
+
+      showNotice(
+        "❌ A autorização do Mercado Livre foi cancelada."
       );
+
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+      return false;
 
     }
 
 
-    if (
-      !data.connected ||
-      !data.user
-    ) {
-
-      throw new Error(
-        "O Mercado Livre não confirmou a conexão."
-      );
-
+    if (!code) {
+      return false;
     }
 
 
-    setConnected(
-      data.user.nickname,
-      data.user.id
-    );
-
-
-    showToast(
-      "🟢 Mercado Livre conectado com sucesso!"
-    );
-
-
-    // Remove ?code=...&state=... da barra
-    window.history.replaceState(
-      {},
-      document.title,
-      window.location.pathname
-    );
-
-
-    return true;
-
-
-  } catch (error) {
-
-    console.error(
-      "Erro no OAuth:",
-      error
-    );
-
-
     showNotice(
-      "❌ " + error.message
+      "🔄 Finalizando conexão com o Mercado Livre..."
     );
 
 
-    window.history.replaceState(
-      {},
-      document.title,
-      window.location.pathname
-    );
+    try {
+
+      const response =
+        await fetch(
+          "/api/ml/exchange?code=" +
+          encodeURIComponent(code) +
+          "&state=" +
+          encodeURIComponent(
+            state || ""
+          )
+        );
 
 
-    return false;
-  }
-
-}
+      const data =
+        await response.json();
 
 
-// =========================================================
-// VERIFICAR CONEXÃO EXISTENTE
-// =========================================================
+      if (!response.ok) {
 
-async function checkConnection() {
+        throw new Error(
+          data.error ||
+          "Não foi possível finalizar a conexão."
+        );
 
-  try {
-
-    const response =
-      await fetch(
-        "/api/ml/me"
-      );
+      }
 
 
-    const data =
-      await response.json();
+      if (
+        !data.connected ||
+        !data.user
+      ) {
 
+        throw new Error(
+          "O Mercado Livre não confirmou a conexão."
+        );
 
-    if (
-      data &&
-      data.connected &&
-      data.user
-    ) {
+      }
+
 
       setConnected(
         data.user.nickname,
         data.user.id
       );
 
-    } else {
 
-      setDisconnected();
+      showToast(
+        "🟢 Mercado Livre conectado!"
+      );
+
+
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+
+      return true;
+
+
+    } catch (error) {
+
+      console.error(
+        error
+      );
+
+      showNotice(
+        "❌ " +
+        error.message
+      );
+
+
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+
+      return false;
 
     }
 
+  }
 
-  } catch (error) {
 
-    console.error(
-      "Erro ao verificar conexão:",
-      error
-    );
+  // =========================================================
+  // INICIALIZAÇÃO
+  // =========================================================
 
-    setDisconnected();
+  async function initializeApp() {
+
+    loadAffiliateLink();
+
+
+    const returnedFromOAuth =
+      await handleOAuthCallback();
+
+
+    if (
+      !returnedFromOAuth
+    ) {
+
+      await checkConnection();
+
+    }
 
   }
 
-}
 
-
-// =========================================================
-// INICIALIZAÇÃO
-// =========================================================
-
-async function initializeApp() {
-
-  loadAffiliateLink();
-
-
-  // Primeiro verifica se estamos
-  // voltando do Mercado Livre
-  const returnedFromOAuth =
-    await handleOAuthCallback();
-
-
-  // Se não era retorno do OAuth,
-  // verifica uma sessão que já existe
-  if (!returnedFromOAuth) {
-
-    await checkConnection();
-
-  }
-
-}
-
-
-initializeApp();
-  
+  initializeApp();
 
 </script>
 
