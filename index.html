@@ -2042,7 +2042,7 @@
             class="action green"
             onclick="copyFacebookPost(${index})"
           >
-            📱 COPIAR POST PARA FACEBOOK
+            📱 COPIAR POST PRONTO
           </button>
 
         </div>
@@ -2131,106 +2131,46 @@
     product
   ) {
 
-    const price =
-      formatMoney(
-        product.price
-      );
+    const price = formatMoney(product.price);
+    const originalPrice = formatMoney(product.original_price);
+    const priceMin = formatMoney(product.price_min);
 
+    let priceText = "Confira o preço no anúncio.";
 
-    const originalPrice =
-      formatMoney(
-        product.original_price
-      );
-
-
-    const priceMin =
-      formatMoney(
-        product.price_min
-      );
-
-
-    let priceText =
-      "Confira o preço no anúncio.";
-
-
-    if (
-      price &&
-      originalPrice
-    ) {
-
-      priceText =
-        "De " +
-        originalPrice +
-        " por " +
-        price;
-
+    if (price && originalPrice && product.original_price > product.price) {
+      priceText = "De " + originalPrice + " por " + price;
     } else if (price) {
-
-      priceText =
-        "Por apenas " +
-        price;
-
+      priceText = "Por apenas " + price;
     } else if (priceMin) {
-
-      priceText =
-        "A partir de " +
-        priceMin;
-
+      priceText = "A partir de " + priceMin;
     }
 
+    const discountText =
+      typeof product.discount === "number" && product.discount > 0
+        ? "\n🔥 " + product.discount + "% OFF"
+        : "";
 
-    let discountText =
-      "";
-
-
-    if (
-      typeof product.discount ===
-      "number"
-    ) {
-
-      discountText =
-        "\n🔥 " +
-        product.discount +
-        "% OFF";
-
-    }
-
-
-    let shippingText =
-      "";
-
-
-    if (
+    const shippingText =
       product.free_shipping
-    ) {
-
-      shippingText =
-        "\n🚚 Frete grátis";
-
-    }
-
+        ? "\n🚚 Frete grátis"
+        : "";
 
     const link = getAffiliateLink(product);
 
-
-    const post = `
-
-🔥 OFERTA ENCONTRADA!
+    const post = `🔥 OFERTA DO DIA NO MERCADO LIVRE!
 
 🛒 ${product.title}
 
 💰 ${priceText}${discountText}${shippingText}
 
-👉 Confira a oferta:
+👉 Veja a oferta:
 ${link}
 
-⚠️ Preço e disponibilidade podem mudar.
+⚡ Corre para conferir! O preço e a disponibilidade podem mudar.
 
-    `.trim();
-
+#MercadoLivre #Oferta #Promoção #Achadinhos #Ofertas`.trim();
 
     return post;
-
   }
 
 
