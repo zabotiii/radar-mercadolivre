@@ -1,95 +1,49 @@
 const {
-  requireSession,
-  json,
-  mlFetch
+  session
 } = require("./lib");
 
-function money(value) {
-  if (typeof value !== "number") return null;
+module.exports = async function(req, res) {
 
-  return value.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL"
-  });
-}
-
-function calculateDiscount(price, originalPrice) {
-  if (
-    typeof price !== "number" ||
-    typeof originalPrice !== "number" ||
-    originalPrice <= price ||
-    originalPrice <= 0
-  ) {
-    return null;
-  }
-
-  return Math.round(((originalPrice - price) / originalPrice) * 100);
-}
-
-function calculateScore(product) {
-  let score = 0;
-
-  // Desconto
-  if (typeof product.discount === "number") {
-    if (product.discount >= 50) score += 35;
-    else if (product.discount >= 40) score += 30;
-    else if (product.discount >= 30) score += 25;
-    else if (product.discount >= 20) score += 18;
-    else if (product.discount >= 10) score += 10;
-  }
-
-  // Anúncio vencedor
-  if (product.has_winner) {
-    score += 20;
-  }
-
-  // Frete grátis
-  if (product.free_shipping) {
-    score += 10;
-  }
-
-  // Disponibilidade
-  if (
-    typeof product.available_quantity === "number" &&
-    product.available_quantity > 0
-  ) {
-    score += 10;
-  }
-
-  // Vendas
-  if (typeof product.sold_quantity === "number") {
-    if (product.sold_quantity >= 1000) score += 15;
-    else if (product.sold_quantity >= 500) score += 12;
-    else if (product.sold_quantity >= 100) score += 9;
-    else if (product.sold_quantity >= 50) score += 6;
-    else if (product.sold_quantity > 0) score += 3;
-  }
-
-  return Math.min(score, 100);
-}
-
-export default async function handler(req, res) {
   try {
+
     if (req.method !== "GET") {
-      return json(res, 405, {
-        error: "Método não permitido"
+
+      return res.status(405).json({
+        error: "Método não permitido."
       });
+
     }
 
-    const session = await requireSession(req, res);
 
-    if (!session) {
-      return;
+    // Verifica a sessão do Mercado Livre
+    const sess = await session(req, res);
+
+
+    if (!sess) {
+
+      return res.status(401).json({
+        error: "Mercado Livre não conectado."
+      });
+
     }
 
-    const q = String(req.query.q || "").trim();
+
+    const q =
+      String(
+        req.query?.q || ""
+      ).trim();
+
 
     if (!q) {
-      return json(res, 400, {
-        error: "Informe um termo de busca."
+
+      return res.status(400).json({
+        error: "Digite um termo de busca."
       });
+
     }
 
+
+    // Busca no catálogo atual do Mercado Livre
     const searchUrl =
       "https://api.mercadolibre.com/products/search" +
       "?status=active" +
@@ -98,52 +52,136 @@ export default async function handler(req, res) {
       encodeURIComponent(q) +
       "&limit=30";
 
-    const searchResponse = await mlFetch(
-      searchUrl,
-      session.access_token
-    );
 
-    if (!searchResponse.ok) {
-      const text = await searchResponse.text();
+    const searchResponse =
+      await fetch(
+        searchUrl,
+        {
+          method: "GET",
+          headers: {
+            "Authorization":
+              `Bearer ${sess.access_token}`,
+            "Accept":
+              "application/json"
+          }
+        }
+      );
 
-      return json(res, searchResponse.status, {
-        error: "Erro na busca do Mercado Livre.",
-        details: text
+
+    const searchText =
+      await searchResponse.text();
+
+
+    let searchData = {};
+
+    try {
+
+      searchData =
+        JSON.parse(searchText);
+
+    } catch (error) {
+
+      return res.status(502).json({
+        error:
+          "O Mercado Livre retornou uma resposta inválida.",
+        details:
+          searchText.substring(0, 500)
       });
+
     }
 
-    const searchData = await searchResponse.json();
 
-    const rawProducts = Array.isArray(searchData.results)
-      ? searchData.results
-      : [];
+    if (!searchResponse.ok) {
+
+      return res.status(
+        searchResponse.status
+      ).json({
+
+        error:
+          searchData.message ||
+          searchData.error ||
+          "Erro na busca do Mercado Livre.",
+
+        details:
+          searchData
+
+      });
+
+    }
+
+
+    const rawProducts =
+      Array.isArray(searchData.results)
+        ? searchData.results
+        : [];
+
 
     const products = [];
 
-    for (const product of rawProducts) {
+
+    // Busca detalhes de cada produto
+    for (
+      const product of rawProducts
+    ) {
+
       try {
-        const detailResponse = await mlFetch(
-          `https://api.mercadolibre.com/products/${encodeURIComponent(
-            product.id
-          )}`,
-          session.access_token
-        );
+
+        const detailResponse =
+          await fetch(
+            "https://api.mercadolibre.com/products/" +
+            encodeURIComponent(product.id),
+            {
+              method: "GET",
+              headers: {
+                "Authorization":
+                  `Bearer ${sess.access_token}`,
+                "Accept":
+                  "application/json"
+              }
+            }
+          );
+
 
         if (!detailResponse.ok) {
           continue;
         }
 
-        const detail = await detailResponse.json();
 
-        const winner = detail.buy_box_winner || null;
+        const detailText =
+          await detailResponse.text();
+
+
+        let detail = null;
+
+
+        try {
+
+          detail =
+            JSON.parse(detailText);
+
+        } catch (error) {
+
+          continue;
+
+        }
+
+
+        const winner =
+          detail.buy_box_winner ||
+          null;
+
 
         const price =
-          winner && typeof winner.price === "number"
+          winner &&
+          typeof winner.price === "number"
             ? winner.price
             : null;
 
+
         const priceRange =
-          detail.buy_box_winner_price_range || null;
+          detail.buy_box_winner_price_range ||
+          null;
+
 
         const priceMin =
           priceRange &&
@@ -151,11 +189,13 @@ export default async function handler(req, res) {
             ? priceRange.min
             : null;
 
+
         const priceMax =
           priceRange &&
           typeof priceRange.max === "number"
             ? priceRange.max
             : null;
+
 
         const originalPrice =
           winner &&
@@ -163,10 +203,27 @@ export default async function handler(req, res) {
             ? winner.original_price
             : null;
 
-        const discount = calculateDiscount(
-          price,
-          originalPrice
-        );
+
+        let discount = null;
+
+
+        if (
+          typeof price === "number" &&
+          typeof originalPrice === "number" &&
+          originalPrice > price &&
+          originalPrice > 0
+        ) {
+
+          discount =
+            Math.round(
+              (
+                (originalPrice - price) /
+                originalPrice
+              ) * 100
+            );
+
+        }
+
 
         const soldQuantity =
           winner &&
@@ -174,41 +231,148 @@ export default async function handler(req, res) {
             ? winner.sold_quantity
             : null;
 
+
         const availableQuantity =
           winner &&
           typeof winner.available_quantity === "number"
             ? winner.available_quantity
             : null;
 
+
         const freeShipping =
-          winner &&
-          winner.shipping &&
-          winner.shipping.free_shipping === true;
+          Boolean(
+            winner &&
+            winner.shipping &&
+            winner.shipping.free_shipping === true
+          );
+
 
         const sellerId =
-          winner && winner.seller_id
+          winner &&
+          winner.seller_id
             ? winner.seller_id
             : null;
 
+
         const image =
           detail.pictures &&
-          detail.pictures.length > 0
+          detail.pictures.length
             ? detail.pictures[0].url
             : null;
+
 
         const permalink =
           detail.permalink ||
           product.permalink ||
           `https://www.mercadolivre.com.br/p/${product.id}`;
 
+
         const itemId =
-          winner && winner.item_id
+          winner &&
+          winner.item_id
             ? winner.item_id
             : null;
 
-        const result = {
-          id: product.id,
-          item_id: itemId,
+
+        // =========================================
+        // RADAR SCORE
+        // =========================================
+
+        let score = 0;
+
+
+        if (
+          typeof discount === "number"
+        ) {
+
+          if (discount >= 50) {
+
+            score += 35;
+
+          } else if (discount >= 40) {
+
+            score += 30;
+
+          } else if (discount >= 30) {
+
+            score += 25;
+
+          } else if (discount >= 20) {
+
+            score += 18;
+
+          } else if (discount >= 10) {
+
+            score += 10;
+
+          }
+
+        }
+
+
+        if (winner) {
+          score += 20;
+        }
+
+
+        if (freeShipping) {
+          score += 10;
+        }
+
+
+        if (
+          typeof availableQuantity === "number" &&
+          availableQuantity > 0
+        ) {
+
+          score += 10;
+
+        }
+
+
+        if (
+          typeof soldQuantity === "number"
+        ) {
+
+          if (soldQuantity >= 1000) {
+
+            score += 15;
+
+          } else if (soldQuantity >= 500) {
+
+            score += 12;
+
+          } else if (soldQuantity >= 100) {
+
+            score += 9;
+
+          } else if (soldQuantity >= 50) {
+
+            score += 6;
+
+          } else if (soldQuantity > 0) {
+
+            score += 3;
+
+          }
+
+        }
+
+
+        score =
+          Math.min(
+            score,
+            100
+          );
+
+
+        products.push({
+
+          id:
+            product.id,
+
+          item_id:
+            itemId,
 
           title:
             detail.name ||
@@ -220,65 +384,126 @@ export default async function handler(req, res) {
           image,
 
           price,
-          price_min: priceMin,
-          price_max: priceMax,
-          original_price: originalPrice,
+
+          price_min:
+            priceMin,
+
+          price_max:
+            priceMax,
+
+          original_price:
+            originalPrice,
 
           discount,
 
-          sold_quantity: soldQuantity,
-          available_quantity: availableQuantity,
+          sold_quantity:
+            soldQuantity,
 
-          free_shipping: Boolean(freeShipping),
+          available_quantity:
+            availableQuantity,
 
-          seller_id: sellerId,
+          free_shipping:
+            freeShipping,
 
-          has_winner: Boolean(winner),
+          seller_id:
+            sellerId,
 
-          condition: "Novo",
+          has_winner:
+            Boolean(winner),
 
-          score: 0
-        };
+          condition:
+            "Novo",
 
-        result.score = calculateScore(result);
+          score
 
-        products.push(result);
+        });
+
+
       } catch (error) {
+
         console.error(
           "Erro ao processar produto:",
           product.id,
           error
         );
+
       }
+
     }
 
-    // Primeiro os melhores scores
-    products.sort((a, b) => {
-      if (b.score !== a.score) {
-        return b.score - a.score;
-      }
 
-      if (
-        typeof b.discount === "number" &&
-        typeof a.discount === "number"
-      ) {
-        return b.discount - a.discount;
-      }
+    // =========================================
+    // ORDENAÇÃO
+    // =========================================
 
-      return 0;
+    products.sort(
+      (a, b) => {
+
+        if (
+          b.score !== a.score
+        ) {
+
+          return (
+            b.score -
+            a.score
+          );
+
+        }
+
+
+        const discountA =
+          typeof a.discount === "number"
+            ? a.discount
+            : 0;
+
+
+        const discountB =
+          typeof b.discount === "number"
+            ? b.discount
+            : 0;
+
+
+        return (
+          discountB -
+          discountA
+        );
+
+      }
+    );
+
+
+    return res.status(200).json({
+
+      keywords:
+        q,
+
+      total:
+        products.length,
+
+      results:
+        products
+
     });
 
-    return json(res, 200, {
-      keywords: q,
-      total: products.length,
-      results: products
-    });
+
   } catch (error) {
-    console.error(error);
 
-    return json(res, 500, {
-      error: "Erro interno.",
-      details: error.message
+    console.error(
+      "ERRO RADAR:",
+      error
+    );
+
+
+    return res.status(500).json({
+
+      error:
+        "Erro interno no Radar.",
+
+      details:
+        error.message
+
     });
+
   }
-}
+
+};
