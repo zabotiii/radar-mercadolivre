@@ -335,6 +335,27 @@
       font-size: 12px;
     }
 
+    .viral-badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 9px;
+      border-radius: 9px;
+      background: #f1f1f1;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .viral-button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #ff6b00;
+      color: white;
+      font-weight: 900;
+      width: 100%;
+      margin-top: 8px;
+    }
+
     .top-post-note {
       margin-top: 8px;
       font-size: 12px;
@@ -973,6 +994,15 @@
           style="display:none"
         >
           🔥 GERAR POSTS DAS MELHORES
+        </button>
+
+        <button
+          id="viralPostButton"
+          class="top-post-button"
+          onclick="openViralPosts()"
+          style="display:none"
+        >
+          🚀 POSTS COM POTENCIAL VIRAL
         </button>
       </div>
 
@@ -1856,6 +1886,14 @@
           : "none";
     }
 
+    const viralButton = document.getElementById("viralPostButton");
+    if (viralButton) {
+      viralButton.style.display =
+        products.some(product => getAffiliateLink(product))
+          ? "inline-block"
+          : "none";
+    }
+
 
     products.forEach(
       (product, index) => {
@@ -1920,6 +1958,8 @@
       typeof product.score === "number"
         ? product.score
         : 0;
+
+    const viralScore = calculateViralScore(product);
 
 
     let priceHtml = "";
@@ -2096,6 +2136,9 @@
           ${escapeHtml(
             product.title
           )}
+          <div class="viral-badge">
+            🚀 Potencial de conteúdo: ${viralScore}/100
+          </div>
         </div>
 
 
@@ -2177,6 +2220,13 @@
             📱 COPIAR POST PRONTO
           </button>
 
+          <button
+            class="viral-button"
+            onclick="copyViralPost(${index})"
+          >
+            🚀 GERAR POST VIRAL
+          </button>
+
         </div>
 
       </div>
@@ -2253,6 +2303,108 @@
       showToast("Não foi possível copiar.");
     }
 
+  }
+
+
+  // POTENCIAL DE CONTEÚDO / VIRALIZAÇÃO
+  // =========================================================
+
+  function calculateViralScore(product) {
+    const discount = Math.max(0, Number(product.discount) || 0);
+    const price = Number(product.price) || Number(product.price_min) || 0;
+    const score = Math.max(0, Math.min(100, Number(product.score) || 0));
+    const sold = Math.max(0, Number(product.sold_quantity) || 0);
+
+    let points = score * 0.35;
+    points += Math.min(discount, 70) * 0.45;
+
+    if (price > 0 && price <= 150) points += 10;
+    else if (price <= 300) points += 6;
+
+    if (product.free_shipping) points += 7;
+    if (product.mais_vendido) points += 8;
+    if (product.has_winner) points += 4;
+
+    if (sold > 0) points += Math.min(6, sold / 150);
+
+    return Math.max(0, Math.min(100, Math.round(points)));
+  }
+
+
+  function generateViralPost(product) {
+    const link = getAffiliateLink(product);
+    const price = formatMoney(product.price);
+    const originalPrice = formatMoney(product.original_price);
+    const discount = Number(product.discount) || 0;
+
+    const priceText =
+      price && originalPrice && product.original_price > product.price
+        ? "De " + originalPrice + " por " + price
+        : price
+          ? "Por " + price
+          : "Confira o preço no anúncio";
+
+    return `🚨 OLHA ESSE ACHADO!
+
+🛒 ${product.title}
+
+💰 ${priceText}
+${discount > 0 ? "🔥 " + discount + "% OFF" : ""}
+${product.free_shipping ? "🚚 Frete grátis" : ""}
+
+👀 Eu conferiria antes que o preço mude:
+
+👉 ${link}
+
+⚠️ Preço e disponibilidade podem mudar.
+
+#Achadinhos #Oferta #MercadoLivre #Promoção #DicaDeCompra`.trim();
+  }
+
+
+  async function copyViralPost(index) {
+    const product = currentProducts[index];
+    if (!product) return;
+
+    if (!getAffiliateLink(product)) {
+      openAffiliateModal(index);
+      showToast("🔗 Salve primeiro o link de afiliado deste produto.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(generateViralPost(product));
+      showToast("🚀 Post viral copiado!");
+    } catch (error) {
+      showToast("Não foi possível copiar o post.");
+    }
+  }
+
+
+  function openViralPosts() {
+    const ranked = currentProducts
+      .filter(product => getAffiliateLink(product))
+      .map(product => ({ product, viralScore: calculateViralScore(product) }))
+      .sort((a, b) => b.viralScore - a.viralScore)
+      .slice(0, 5);
+
+    if (!ranked.length) {
+      showToast("🔗 Salve links afiliados para gerar posts com potencial viral.");
+      return;
+    }
+
+    const posts = ranked.map((entry, index) =>
+      "━━━━━━━━━━━━━━━━━━━━\n" +
+      "🚀 VIRAL " + (index + 1) + " • " + entry.viralScore + "/100\n" +
+      "━━━━━━━━━━━━━━━━━━━━\n" +
+      generateViralPost(entry.product)
+    ).join("\n\n");
+
+    document.getElementById("topPostSummary").textContent =
+      "Selecionamos " + ranked.length + " produto(s) com maior potencial de conteúdo.";
+
+    document.getElementById("topPostText").value = posts;
+    document.getElementById("topPostModal").classList.add("show");
   }
 
 
