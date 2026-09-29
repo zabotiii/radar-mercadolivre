@@ -196,6 +196,11 @@ function normalizeResults(data) {
   return [];
 }
 
+function itemIdOf(item) {
+  if (!item) return null;
+  return item.item_id || item.id || null;
+}
+
 function makeItemUrl(item, catalogUrl) {
   if (item && item.permalink) {
     return item.permalink;
