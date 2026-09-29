@@ -103,6 +103,36 @@ async function getProductItems(productId, token) {
   );
 }
 
+function affiliateCommissionRate(categoryName) {
+  const name = String(categoryName || "").toLowerCase();
+
+  if (/beleza|calçados|calcados|roupas|bolsas|esportes|fitness/.test(name)) return 0.16;
+  if (/celular|informática|informatica|eletrônicos|eletronicos|áudio|audio|vídeo|video|câmeras|cameras|eletrodomésticos|eletrodomesticos/.test(name)) return 0.05;
+
+  // Faixa padrão atual para as demais categorias participantes.
+  if (name) return 0.12;
+
+  return null;
+}
+
+function addCommission(product, categoryName) {
+  const rate = affiliateCommissionRate(categoryName);
+  const price = Number(product.price);
+
+  product.affiliate_commission_rate = rate;
+  product.affiliate_commission_estimate =
+    rate !== null && Number.isFinite(price) && price > 0
+      ? Math.round(price * rate * 100) / 100
+      : null;
+
+  product.affiliate_commission_label =
+    rate !== null
+      ? Math.round(rate * 100) + "%"
+      : null;
+
+  return addCommission(product, categoryName);
+}
+
 function getImage(product) {
   if (
     product &&
