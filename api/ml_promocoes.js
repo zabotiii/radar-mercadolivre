@@ -50,7 +50,7 @@ async function mlFetch(path, token) {
       {
         method: "GET",
         headers: {
-          Authorization: \`Bearer \${token}\`,
+          Authorization: `Bearer ${token}`,
           Accept: "application/json"
         }
       }
@@ -79,14 +79,14 @@ async function mlFetch(path, token) {
 
 async function getHighlights(categoryId, token) {
   return mlFetch(
-    \`/highlights/\${SITE_ID}/category/\${encodeURIComponent(categoryId)}\`,
+    `/highlights/${SITE_ID}/category/${encodeURIComponent(categoryId)}`,
     token
   );
 }
 
 async function getProduct(productId, token) {
   return mlFetch(
-    \`/products/\${encodeURIComponent(productId)}\`,
+    `/products/${encodeURIComponent(productId)}`,
     token
   );
 }
@@ -98,7 +98,7 @@ async function getProduct(productId, token) {
 */
 async function getProductItems(productId, token) {
   return mlFetch(
-    \`/products/\${encodeURIComponent(productId)}/items?limit=20\`,
+    `/products/${encodeURIComponent(productId)}/items?limit=20`,
     token
   );
 }
@@ -202,7 +202,7 @@ function makeItemUrl(item, catalogUrl) {
   }
 
   if (item && item.id) {
-    return \`https://www.mercadolivre.com.br/p/\${encodeURIComponent(item.id)}\`;
+    return `https://www.mercadolivre.com.br/p/${encodeURIComponent(item.id)}`;
   }
 
   return catalogUrl || null;
