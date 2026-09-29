@@ -1,798 +1,447 @@
 const { session } = require("./lib");
 
-module.exports = async function (req, res) {
+const CATEGORIAS = {
+  todas: "",
+  celulares: "celular smartphone iphone samsung",
+  eletronicos: "eletronicos fone headset smartwatch televisao",
+  casa: "casa cozinha eletrodomestico",
+  informatica: "notebook computador mouse teclado monitor",
+  games: "video game playstation xbox nintendo",
+  moda: "roupa tenis camiseta mochila"
+};
+
+function json(res, status, data) {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.end(JSON.stringify(data));
+}
+
+async function mlFetch(path, accessToken) {
+  const r = await fetch("https://api.mercadolibre.com" + path, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json"
+    }
+  });
+
+  let data = null;
+
   try {
-    if (req.method !== "GET") {
-      return res.status(405).json({
-        error: "Método não permitido."
-      });
-    }
+    data = await r.json();
+  } catch (_) {
+    data = null;
+  }
 
-    const sess = await session(req, res);
+  return {
+    ok: r.ok,
+    status: r.status,
+    data
+  };
+}
 
-    if (!sess || !sess.access_token) {
-      return res.status(401).json({
-        error: "Conecte sua conta do Mercado Livre primeiro."
-      });
-    }
+function numero(v) {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
 
-    const token = sess.access_token;
+function desconto(preco, original) {
+  if (
+    typeof preco !== "number" ||
+    typeof original !== "number" ||
+    original <= preco ||
+    original <= 0
+  ) {
+    return 0;
+  }
 
-    // =========================================================
-    // CATEGORIAS
-    // =========================================================
+  return Math.round(((original - preco) / original) * 100);
+}
 
-    const categorias = {
-      "📱 Celulares": [
-        "celular",
-        "smartphone",
-        "iphone",
-        "samsung galaxy"
-      ],
+function scoreProduto(p) {
+  let score = 0;
 
-      "🎧 Eletrônicos": [
-        "fone bluetooth",
-        "smartwatch",
-        "caixa de som bluetooth",
-        "tv smart"
-      ],
+  if (p.preco != null) score += 30;
+  if (p.desconto >= 10) score += 20;
+  if (p.desconto >= 20) score += 10;
+  if (p.desconto >= 30) score += 10;
+  if (p.fretegratis) score += 10;
+  if (p.vencedor) score += 10;
+  if (p.quantidade > 0) score += 5;
+  if (p.vendidos > 20) score += 5;
 
-      "🏠 Casa": [
-        "air fryer",
-        "aspirador de pó",
-        "cafeteira",
-        "liquidificador",
-        "ventilador"
-      ],
+  return Math.min(score, 100);
+}
 
-      "💻 Informática": [
-        "notebook",
-        "monitor",
-        "teclado gamer",
-        "mouse gamer",
-        "ssd"
-      ],
+function limitarTexto(texto, max = 180) {
+  if (!texto) return "";
+  return String(texto).trim().slice(0, max);
+}
 
-      "🎮 Games": [
-        "playstation 5",
-        "xbox",
-        "nintendo switch",
-        "controle gamer",
-        "headset gamer"
-      ],
+async function buscarPreco(itemId, accessToken) {
+  if (!itemId) return null;
 
-      "👕 Moda": [
-        "tênis masculino",
-        "tênis feminino",
-        "camiseta",
-        "mochila",
-        "relógio"
-      ]
-    };
+  const resposta = await mlFetch(
+    `/items/${encodeURIComponent(itemId)}/prices`,
+    accessToken
+  );
 
-    const categoriaSolicitada =
-      String(req.query?.categoria || "Todas").trim();
+  if (!resposta.ok || !resposta.data) {
+    return null;
+  }
 
-    let termos = [];
+  const lista = Array.isArray(resposta.data.prices)
+    ? resposta.data.prices
+    : [];
 
-    if (
-      categoriaSolicitada !== "Todas" &&
-      categorias[categoriaSolicitada]
-    ) {
-      termos = categorias[categoriaSolicitada].map(
-        termo => ({
-          categoria: categoriaSolicitada,
-          termo
-        })
-      );
-    } else {
-      for (const [categoria, lista] of Object.entries(
-        categorias
-      )) {
-        for (const termo of lista) {
-          termos.push({
-            categoria,
-            termo
-          });
-        }
-      }
-    }
+  if (!lista.length) {
+    return null;
+  }
 
-    // =========================================================
-    // REQUEST MERCADO LIVRE
-    // =========================================================
+  /*
+   * O Mercado Livre pode retornar preços standard e promotion.
+   * Priorizamos promotion quando estiver válida.
+   */
+  const validos = lista.filter((p) => {
+    return (
+      p &&
+      typeof p.amount === "number" &&
+      (!p.conditions || !p.conditions.context_restrictions ||
+        p.conditions.context_restrictions.includes("channel_marketplace"))
+    );
+  });
 
-    async function mlRequest(url) {
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json"
-        }
-      });
+  if (!validos.length) {
+    return null;
+  }
 
-      const text = await response.text();
+  const promocional = validos.find((p) => p.type === "promotion");
 
-      let data = {};
+  const standard = validos.find((p) => p.type === "standard");
 
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error(
-          `Resposta inválida do Mercado Livre (${response.status}).`
-        );
-      }
+  const escolhido = promocional || standard || validos[0];
 
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-          data.error ||
-          `Erro Mercado Livre ${response.status}.`
-        );
-      }
+  let original = null;
 
-      return data;
-    }
+  if (promocional && standard) {
+    original = numero(standard.amount);
+  }
 
-    // =========================================================
-    // BUSCAR PRODUTOS DE CATÁLOGO
-    // =========================================================
+  if (original == null && promocional) {
+    original = numero(promocional.regular_amount);
+  }
 
-    const mapaProdutos = new Map();
+  return {
+    preco: numero(escolhido.amount),
+    original,
+    tipo: escolhido.type || "standard",
+    promocao: escolhido.promotion_id || null,
+    moeda: escolhido.currency_id || "BRL"
+  };
+}
 
-    for (const item of termos) {
-      try {
-        const url =
-          "https://api.mercadolibre.com/products/search" +
-          "?status=active" +
-          "&site_id=MLB" +
-          "&q=" +
-          encodeURIComponent(item.termo) +
-          "&limit=10";
+async function buscarDetalhesProduto(productId, accessToken) {
+  const resposta = await mlFetch(
+    `/products/${encodeURIComponent(productId)}`,
+    accessToken
+  );
 
-        const data = await mlRequest(url);
+  if (!resposta.ok || !resposta.data) {
+    return null;
+  }
 
-        const produtos = Array.isArray(data.results)
-          ? data.results
-          : [];
+  return resposta.data;
+}
 
-        for (const produto of produtos) {
-          if (!produto.id) continue;
+async function buscarItem(itemId, accessToken) {
+  if (!itemId) return null;
 
-          if (!mapaProdutos.has(produto.id)) {
-            mapaProdutos.set(produto.id, {
-              id: produto.id,
-              categoria: item.categoria,
-              termo: item.termo
-            });
-          }
-        }
-      } catch (error) {
-        console.error(
-          "Erro na busca:",
-          item.termo,
-          error.message
-        );
-      }
-    }
+  const resposta = await mlFetch(
+    `/items/${encodeURIComponent(itemId)}`,
+    accessToken
+  );
 
-    // =========================================================
-    // PROCESSAR PRODUTOS
-    // =========================================================
+  if (!resposta.ok || !resposta.data) {
+    return null;
+  }
 
-    const resultados = [];
+  return resposta.data;
+}
+
+async function processarProduto(product, accessToken) {
+  try {
+    const productId = product.id;
+
+    const detalhe = await buscarDetalhesProduto(
+      productId,
+      accessToken
+    );
+
+    if (!detalhe) return null;
+
+    let winner = detalhe.buy_box_winner || null;
 
     /*
-      Limitamos a quantidade para evitar excesso
-      de chamadas na API.
-    */
-    const candidatos =
-      Array.from(mapaProdutos.values()).slice(0, 40);
-
-    for (const base of candidatos) {
-      try {
-
-        // =====================================================
-        // DETALHE DO PRODUTO
-        // =====================================================
-
-        const produto =
-          await mlRequest(
-            "https://api.mercadolibre.com/products/" +
-            encodeURIComponent(base.id)
-          );
-
-        let winner =
-          produto.buy_box_winner || null;
-
-        // =====================================================
-        // FALLBACK:
-        // ALGUNS PRODUTOS POSSUEM FILHOS
-        // =====================================================
-
-        if (
-          !winner &&
-          Array.isArray(produto.children_ids) &&
-          produto.children_ids.length
-        ) {
-
-          const children =
-            produto.children_ids.slice(0, 3);
-
-          for (const childId of children) {
-
-            try {
-
-              const child =
-                await mlRequest(
-                  "https://api.mercadolibre.com/products/" +
-                  encodeURIComponent(childId)
-                );
-
-              if (
-                child &&
-                child.buy_box_winner
-              ) {
-                winner =
-                  child.buy_box_winner;
-
-                break;
-              }
-
-            } catch (error) {
-              console.error(
-                "Erro no produto filho:",
-                childId,
-                error.message
-              );
-            }
-          }
-        }
-
-        // =====================================================
-        // DADOS INICIAIS
-        // =====================================================
-
-        let price = null;
-
-        let originalPrice = null;
-
-        let priceMin = null;
-
-        let priceMax = null;
-
-        let discount = null;
-
-        let soldQuantity = null;
-
-        let availableQuantity = null;
-
-        let freeShipping = false;
-
-        let itemId = null;
-
-        let sellerId = null;
-
-        let itemTitle = null;
-
-        let itemPermalink = null;
-
-        // =====================================================
-        // SE ENCONTROU PUBLICAÇÃO VENCEDORA
-        // =====================================================
-
-        if (winner) {
-
-          itemId =
-            winner.item_id || null;
-
-          sellerId =
-            winner.seller_id || null;
-
-          if (
-            typeof winner.price === "number"
-          ) {
-            price =
-              winner.price;
-          }
-
-          if (
-            winner.price_range &&
-            typeof winner.price_range.min ===
-              "number"
-          ) {
-            priceMin =
-              winner.price_range.min;
-          }
-
-          if (
-            winner.price_range &&
-            typeof winner.price_range.max ===
-              "number"
-          ) {
-            priceMax =
-              winner.price_range.max;
-          }
-
-          if (
-            typeof winner.original_price ===
-              "number"
-          ) {
-            originalPrice =
-              winner.original_price;
-          }
-
-          if (
-            typeof winner.sold_quantity ===
-              "number"
-          ) {
-            soldQuantity =
-              winner.sold_quantity;
-          }
-
-          if (
-            typeof winner.available_quantity ===
-              "number"
-          ) {
-            availableQuantity =
-              winner.available_quantity;
-          }
-
-          if (
-            winner.shipping &&
-            winner.shipping.free_shipping === true
-          ) {
-            freeShipping = true;
-          }
-
-        }
-
-        // =====================================================
-        // CONSULTAR O ITEM VENCEDOR
-        // =====================================================
-
-        if (itemId) {
-
-          try {
-
-            const item =
-              await mlRequest(
-                "https://api.mercadolibre.com/items/" +
-                encodeURIComponent(itemId)
-              );
-
-            itemTitle =
-              item.title || null;
-
-            itemPermalink =
-              item.permalink || null;
-
-            if (
-              typeof item.price === "number" &&
-              price === null
-            ) {
-              price =
-                item.price;
-            }
-
-            if (
-              typeof item.original_price ===
-                "number"
-            ) {
-              originalPrice =
-                item.original_price;
-            }
-
-            if (
-              typeof item.available_quantity ===
-                "number"
-            ) {
-              availableQuantity =
-                item.available_quantity;
-            }
-
-            if (
-              typeof item.sold_quantity ===
-                "number"
-            ) {
-              soldQuantity =
-                item.sold_quantity;
-            }
-
-            if (
-              item.shipping &&
-              item.shipping.free_shipping === true
-            ) {
-              freeShipping = true;
-            }
-
-          } catch (error) {
-
-            console.error(
-              "Erro ao consultar item:",
-              itemId,
-              error.message
-            );
-
-          }
-
-        }
-
-        // =====================================================
-        // CONSULTAR PREÇOS DO ITEM
-        // =====================================================
-
-        if (itemId) {
-
-          try {
-
-            const prices =
-              await mlRequest(
-                "https://api.mercadolibre.com/items/" +
-                encodeURIComponent(itemId) +
-                "/prices"
-              );
-
-            if (
-              Array.isArray(prices.prices)
-            ) {
-
-              const standard =
-                prices.prices.find(
-                  p =>
-                    p.type === "standard"
-                );
-
-              const promotion =
-                prices.prices.find(
-                  p =>
-                    p.type === "promotion"
-                );
-
-              if (
-                promotion &&
-                typeof promotion.amount ===
-                  "number"
-              ) {
-
-                if (
-                  !price ||
-                  promotion.amount < price
-                ) {
-                  price =
-                    promotion.amount;
-                }
-
-                if (
-                  standard &&
-                  typeof standard.amount ===
-                    "number"
-                ) {
-                  originalPrice =
-                    standard.amount;
-                }
-
-              } else if (
-                !price &&
-                standard &&
-                typeof standard.amount ===
-                  "number"
-              ) {
-
-                price =
-                  standard.amount;
-
-              }
-
-            }
-
-          } catch (error) {
-
-            console.error(
-              "Erro ao consultar preços:",
-              itemId,
-              error.message
-            );
-
-          }
-
-        }
-
-        // =====================================================
-        // CALCULAR DESCONTO
-        // =====================================================
-
-        if (
-          typeof price === "number" &&
-          typeof originalPrice === "number" &&
-          originalPrice > price
-        ) {
-
-          discount =
-            Math.round(
-              (
-                (originalPrice - price) /
-                originalPrice
-              ) * 100
-            );
-
-        }
-
-        // =====================================================
-        // RADAR SCORE
-        // =====================================================
-
-        let score = 0;
-
-        if (winner) {
-          score += 20;
-        }
-
-        if (discount !== null) {
-
-          if (discount >= 50) {
-            score += 45;
-          } else if (discount >= 40) {
-            score += 40;
-          } else if (discount >= 30) {
-            score += 32;
-          } else if (discount >= 20) {
-            score += 24;
-          } else if (discount >= 10) {
-            score += 12;
-          }
-
-        }
-
-        if (freeShipping) {
-          score += 15;
-        }
-
-        if (
-          typeof soldQuantity ===
-            "number"
-        ) {
-
-          if (soldQuantity >= 1000) {
-            score += 15;
-          } else if (soldQuantity >= 500) {
-            score += 12;
-          } else if (soldQuantity >= 100) {
-            score += 9;
-          } else if (soldQuantity >= 20) {
-            score += 5;
-          }
-
-        }
-
-        if (
-          typeof availableQuantity ===
-            "number" &&
-          availableQuantity > 0
-        ) {
-          score += 5;
-        }
-
-        if (score > 100) {
-          score = 100;
-        }
-
-        // =====================================================
-        // IMAGEM
-        // =====================================================
-
-        let image = null;
-
-        if (
-          Array.isArray(
-            produto.pictures
-          ) &&
-          produto.pictures.length
-        ) {
-
-          image =
-            produto.pictures[0].url ||
-            produto.pictures[0].secure_url ||
-            null;
-
-        }
-
-        // =====================================================
-        // LINK
-        // =====================================================
-
-        const permalink =
-          itemPermalink ||
-          produto.permalink ||
-          null;
-
-        // =====================================================
-        // TÍTULO
-        // =====================================================
-
-        const title =
-          itemTitle ||
-          produto.name ||
-          produto.title ||
-          "Produto Mercado Livre";
-
-        // =====================================================
-        // ADICIONAR RESULTADO
-        // =====================================================
-
-        resultados.push({
-
-          id:
-            produto.id,
-
-          title,
-
-          category:
-            base.categoria,
-
-          search_term:
-            base.termo,
-
-          image,
-
-          permalink,
-
-          price,
-
-          original_price:
-            originalPrice,
-
-          price_min:
-            priceMin,
-
-          price_max:
-            priceMax,
-
-          discount,
-
-          sold_quantity:
-            soldQuantity,
-
-          available_quantity:
-            availableQuantity,
-
-          free_shipping:
-            freeShipping,
-
-          has_winner:
-            !!winner,
-
-          item_id:
-            itemId,
-
-          seller_id:
-            sellerId,
-
-          condition:
-            "Novo",
-
-          score
-
-        });
-
-      } catch (error) {
-
-        console.error(
-          "Erro ao processar produto:",
-          base.id,
-          error.message
+     * Em alguns produtos o vencedor pode não estar diretamente
+     * disponível. Tentamos alguns children_ids.
+     */
+    if (!winner && Array.isArray(detalhe.children_ids)) {
+      const filhos = detalhe.children_ids.slice(0, 3);
+
+      for (const childId of filhos) {
+        const filho = await buscarDetalhesProduto(
+          childId,
+          accessToken
         );
 
+        if (filho && filho.buy_box_winner) {
+          winner = filho.buy_box_winner;
+          break;
+        }
       }
     }
 
-    // =========================================================
-    // ORDENAR
-    // =========================================================
+    /*
+     * Sem vencedor não conseguimos montar uma oferta confiável.
+     */
+    if (!winner || !winner.item_id) {
+      return null;
+    }
 
-    resultados.sort(
-      (a, b) => {
+    const itemId = winner.item_id;
 
-        if (
-          b.score !== a.score
-        ) {
-          return (
-            b.score -
-            a.score
-          );
-        }
+    /*
+     * Buscamos o item para pegar permalink, título,
+     * quantidade e outros dados de apoio.
+     */
+    const item = await buscarItem(itemId, accessToken);
 
-        const descontoA =
-          typeof a.discount ===
-            "number"
-            ? a.discount
-            : 0;
-
-        const descontoB =
-          typeof b.discount ===
-            "number"
-            ? b.discount
-            : 0;
-
-        return (
-          descontoB -
-          descontoA
-        );
-
-      }
+    /*
+     * Buscamos o preço pelo endpoint oficial /prices.
+     */
+    const precoInfo = await buscarPreco(
+      itemId,
+      accessToken
     );
 
-    // =========================================================
-    // PRIORIZAR OFERTAS REAIS
-    // =========================================================
+    /*
+     * Se /prices não retornar, usamos o preço que veio
+     * diretamente no buy_box_winner como fallback.
+     */
+    const preco =
+      precoInfo && precoInfo.preco != null
+        ? precoInfo.preco
+        : numero(winner.price);
 
-    resultados.sort(
-      (a, b) => {
+    let original =
+      precoInfo && precoInfo.original != null
+        ? precoInfo.original
+        : numero(winner.original_price);
 
-        const aOferta =
-          a.price !== null &&
-          a.has_winner;
+    /*
+     * Fallback adicional para publicação.
+     */
+    if (original == null && item) {
+      original = numero(item.original_price);
+    }
 
-        const bOferta =
-          b.price !== null &&
-          b.has_winner;
+    const desc = desconto(preco, original);
 
-        if (
-          aOferta &&
-          !bOferta
-        ) {
-          return -1;
-        }
+    const shipping =
+      winner.shipping ||
+      (item && item.shipping) ||
+      {};
 
-        if (
-          !aOferta &&
-          bOferta
-        ) {
-          return 1;
-        }
+    const fretegratis =
+      shipping.free_shipping === true ||
+      (Array.isArray(shipping.tags) &&
+        shipping.tags.includes("mandatory_free_shipping"));
 
-        return 0;
+    const quantidade =
+      numero(winner.available_quantity) ??
+      (item ? numero(item.available_quantity) : null) ??
+      0;
 
-      }
-    );
+    const vendidos =
+      item && numero(item.sold_quantity) != null
+        ? item.sold_quantity
+        : 0;
 
-    // =========================================================
-    // RETORNO
-    // =========================================================
+    const titulo =
+      (item && item.title) ||
+      detalhe.name ||
+      product.name ||
+      "Produto Mercado Livre";
 
-    return res.status(200).json({
+    const permalink =
+      (item && item.permalink) ||
+      winner.permalink ||
+      detalhe.permalink ||
+      product.permalink ||
+      `https://www.mercadolivre.com.br/`;
 
-      success: true,
+    const imagem =
+      (item &&
+        Array.isArray(item.pictures) &&
+        item.pictures[0] &&
+        (item.pictures[0].secure_url || item.pictures[0].url)) ||
+      (Array.isArray(product.pictures) &&
+        product.pictures[0] &&
+        (product.pictures[0].secure_url ||
+          product.pictures[0].url)) ||
+      null;
 
-      categoria:
-        categoriaSolicitada,
+    const resultado = {
+      id: itemId,
+      product_id: productId,
+      titulo: limitarTexto(titulo, 220),
+      imagem,
+      permalink,
+      preco,
+      preco_original: original,
+      desconto: desc,
+      tipo_preco: precoInfo ? precoInfo.tipo : null,
+      promocao_id: precoInfo ? precoInfo.promocao : null,
+      moeda:
+        (precoInfo && precoInfo.moeda) ||
+        winner.currency_id ||
+        (item && item.currency_id) ||
+        "BRL",
+      vencedor: true,
+      seller_id: winner.seller_id || null,
+      quantidade,
+      vendidos,
+      fretegratis,
+      score: 0
+    };
 
-      total:
-        resultados.length,
+    resultado.score = scoreProduto(resultado);
 
-      results:
-        resultados.slice(
-          0,
-          50
-        )
-
-    });
-
-  } catch (error) {
-
+    return resultado;
+  } catch (erro) {
     console.error(
-      "Erro geral no Radar:",
-      error
+      "Erro processando produto:",
+      product && product.id,
+      erro
     );
 
-    return res.status(500).json({
+    return null;
+  }
+}
 
-      error:
-        "Erro interno no Radar.",
+module.exports = async function handler(req, res) {
+  try {
+    const sessao = await session(req, res);
 
-      details:
-        error.message
+    if (!sessao || !sessao.access_token) {
+      return json(res, 401, {
+        error: "Mercado Livre não conectado."
+      });
+    }
 
+    const categoria =
+      String(
+        (req.query && req.query.categoria) || "todas"
+      ).toLowerCase();
+
+    const termo =
+      CATEGORIAS[categoria] !== undefined
+        ? CATEGORIAS[categoria]
+        : "";
+
+    /*
+     * Busca produtos de catálogo.
+     */
+    const limiteBusca = 30;
+
+    const url =
+      `/products/search?status=active&site_id=MLB` +
+      `&q=${encodeURIComponent(termo)}` +
+      `&limit=${limiteBusca}`;
+
+    const busca = await mlFetch(
+      url,
+      sessao.access_token
+    );
+
+    if (!busca.ok || !busca.data) {
+      return json(res, 502, {
+        error: "Erro ao buscar produtos no Mercado Livre.",
+        detalhes: busca.data || null
+      });
+    }
+
+    const produtos = Array.isArray(busca.data.results)
+      ? busca.data.results
+      : [];
+
+    /*
+     * Processamos em pequenos grupos para não estourar
+     * o tempo da função do Vercel.
+     */
+    const resultados = [];
+
+    const tamanhoGrupo = 5;
+
+    for (
+      let inicio = 0;
+      inicio < produtos.length;
+      inicio += tamanhoGrupo
+    ) {
+      const grupo = produtos.slice(
+        inicio,
+        inicio + tamanhoGrupo
+      );
+
+      const processados = await Promise.all(
+        grupo.map((p) =>
+          processarProduto(
+            p,
+            sessao.access_token
+          )
+        )
+      );
+
+      for (const resultado of processados) {
+        if (
+          resultado &&
+          resultado.preco != null
+        ) {
+          resultados.push(resultado);
+        }
+      }
+
+      /*
+       * Se já temos ofertas suficientes,
+       * não precisamos continuar fazendo chamadas.
+       */
+      if (resultados.length >= 50) {
+        break;
+      }
+    }
+
+    resultados.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+
+      if (b.desconto !== a.desconto) {
+        return b.desconto - a.desconto;
+      }
+
+      return b.vendidos - a.vendidos;
     });
 
+    return json(res, 200, {
+      categoria,
+      termo,
+      total: resultados.length,
+      resultados: resultados.slice(0, 50)
+    });
+  } catch (erro) {
+    console.error("ERRO ml_promocoes:", erro);
+
+    return json(res, 500, {
+      error: "Erro interno ao buscar promoções.",
+      message: erro.message
+    });
   }
 };
