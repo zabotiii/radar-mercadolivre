@@ -1999,3 +1999,478 @@
             </span>
 
           </div>
+
+
+          <div class="score-bar">
+
+            <div
+              class="score-fill"
+              style="width:${score}%"
+            ></div>
+
+          </div>
+
+        </div>
+
+
+        <div class="actions">
+
+          <button
+            class="action primary"
+            onclick="openProduct(${index})"
+          >
+            🔗 PRODUTO
+          </button>
+
+          <button
+            class="action dark"
+            onclick="openAffiliateModal(${index})"
+          >
+            ${affiliateButtonLabel(product)}
+          </button>
+
+
+          <button
+            class="action dark"
+            onclick="copyProductLink(${index})"
+          >
+            📋 COPIAR LINK AFILIADO
+          </button>
+
+
+          <button
+            class="action green"
+            onclick="copyFacebookPost(${index})"
+          >
+            📱 COPIAR POST PARA FACEBOOK
+          </button>
+
+        </div>
+
+      </div>
+
+    `;
+
+
+    return card;
+
+  }
+
+
+  // =========================================================
+  // ABRIR PRODUTO
+  // =========================================================
+
+  function openProduct(
+    index
+  ) {
+
+    const product =
+      currentProducts[index];
+
+
+    if (!product) {
+      return;
+    }
+
+
+    if (
+      !product.permalink
+    ) {
+
+      showToast(
+        "Link do produto indisponível."
+      );
+
+      return;
+
+    }
+
+
+    window.open(
+      product.permalink,
+      "_blank"
+    );
+
+  }
+
+
+  // =========================================================
+  // COPIAR LINK
+  // =========================================================
+
+  async function copyProductLink(
+    index
+  ) {
+
+    const product = currentProducts[index];
+    if (!product) return;
+
+    const link = getAffiliateLink(product);
+
+    if (!link) {
+      openAffiliateModal(index);
+      showToast("🔗 Gere e salve o link de afiliado deste produto.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast("🔗 Link de afiliado copiado!");
+    } catch (error) {
+      showToast("Não foi possível copiar.");
+    }
+
+  }
+
+
+  // POST FACEBOOK
+  // =========================================================
+
+  function generateFacebookPost(
+    product
+  ) {
+
+    const price =
+      formatMoney(
+        product.price
+      );
+
+
+    const originalPrice =
+      formatMoney(
+        product.original_price
+      );
+
+
+    const priceMin =
+      formatMoney(
+        product.price_min
+      );
+
+
+    let priceText =
+      "Confira o preço no anúncio.";
+
+
+    if (
+      price &&
+      originalPrice
+    ) {
+
+      priceText =
+        "De " +
+        originalPrice +
+        " por " +
+        price;
+
+    } else if (price) {
+
+      priceText =
+        "Por apenas " +
+        price;
+
+    } else if (priceMin) {
+
+      priceText =
+        "A partir de " +
+        priceMin;
+
+    }
+
+
+    let discountText =
+      "";
+
+
+    if (
+      typeof product.discount ===
+      "number"
+    ) {
+
+      discountText =
+        "\n🔥 " +
+        product.discount +
+        "% OFF";
+
+    }
+
+
+    let shippingText =
+      "";
+
+
+    if (
+      product.free_shipping
+    ) {
+
+      shippingText =
+        "\n🚚 Frete grátis";
+
+    }
+
+
+    const link = getAffiliateLink(product);
+
+
+    const post = `
+
+🔥 OFERTA ENCONTRADA!
+
+🛒 ${product.title}
+
+💰 ${priceText}${discountText}${shippingText}
+
+👉 Confira a oferta:
+${link}
+
+⚠️ Preço e disponibilidade podem mudar.
+
+    `.trim();
+
+
+    return post;
+
+  }
+
+
+  async function copyFacebookPost(
+    index
+  ) {
+
+    const product =
+      currentProducts[index];
+
+
+    if (!product) {
+      return;
+    }
+
+
+    const affiliateLinkForProduct = getAffiliateLink(product);
+
+    if (!affiliateLinkForProduct) {
+      openAffiliateModal(index);
+      showToast("🔗 Salve primeiro o link de afiliado deste produto.");
+      return;
+    }
+
+    const post =
+      generateFacebookPost(
+        product
+      );
+
+
+    try {
+
+      await navigator.clipboard.writeText(
+        post
+      );
+
+
+      showToast(
+        "📱 Post copiado!"
+      );
+
+    } catch (error) {
+
+      showToast(
+        "Não foi possível copiar o post."
+      );
+
+    }
+
+  }
+
+
+  // =========================================================
+  // ENTER NA BUSCA
+  // =========================================================
+
+  document
+    .getElementById(
+      "searchInput"
+    )
+    .addEventListener(
+      "keydown",
+      function(event) {
+
+        if (
+          event.key === "Enter"
+        ) {
+
+          searchProducts();
+
+        }
+
+      }
+    );
+
+
+  // =========================================================
+  // OAUTH
+  // =========================================================
+
+  async function handleOAuthCallback() {
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+
+    const code =
+      params.get("code");
+
+
+    const state =
+      params.get("state");
+
+
+    const oauthError =
+      params.get("error");
+
+
+    if (oauthError) {
+
+      showNotice(
+        "❌ A autorização do Mercado Livre foi cancelada."
+      );
+
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+      return false;
+
+    }
+
+
+    if (!code) {
+      return false;
+    }
+
+
+    showNotice(
+      "🔄 Finalizando conexão com o Mercado Livre..."
+    );
+
+
+    try {
+
+      const response =
+        await fetch(
+          "/api/ml/exchange?code=" +
+          encodeURIComponent(code) +
+          "&state=" +
+          encodeURIComponent(
+            state || ""
+          )
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          data.error ||
+          "Não foi possível finalizar a conexão."
+        );
+
+      }
+
+
+      if (
+        !data.connected ||
+        !data.user
+      ) {
+
+        throw new Error(
+          "O Mercado Livre não confirmou a conexão."
+        );
+
+      }
+
+
+      setConnected(
+        data.user.nickname,
+        data.user.id
+      );
+
+
+      showToast(
+        "🟢 Mercado Livre conectado!"
+      );
+
+
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+
+      return true;
+
+
+    } catch (error) {
+
+      console.error(
+        error
+      );
+
+      showNotice(
+        "❌ " +
+        error.message
+      );
+
+
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+
+      return false;
+
+    }
+
+  }
+
+
+  // =========================================================
+  // INICIALIZAÇÃO
+  // =========================================================
+
+  async function initializeApp() {
+
+    loadAffiliateLinks();
+
+
+    const returnedFromOAuth =
+      await handleOAuthCallback();
+
+
+    if (
+      !returnedFromOAuth
+    ) {
+
+      await checkConnection();
+
+    }
+
+  }
+
+
+  initializeApp();
+
+</script>
+
+</body>
+</html>
