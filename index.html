@@ -642,6 +642,54 @@
       color: #c42626;
     }
 
+    .more-details{
+      margin-top: 12px;
+      border: 1px solid #ece7df;
+      border-radius: 11px;
+      background: #faf9f7;
+      overflow: hidden;
+    }
+
+    .more-details summary{
+      cursor: pointer;
+      list-style: none;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 900;
+      color: #444;
+    }
+
+    .more-details summary::-webkit-details-marker{
+      display:none;
+    }
+
+    .more-details summary:after{
+      content:"＋";
+      float:right;
+      color:#ff6a00;
+      font-size:14px;
+    }
+
+    .more-details[open] summary:after{
+      content:"−";
+    }
+
+    .more-details-content{
+      padding: 0 12px 12px;
+    }
+
+    .more-details-content .viral-badge{
+      margin-top: 2px;
+    }
+
+    .more-details-content .info-list{
+      margin-top: 10px;
+    }
+
+    .more-details-content .score-area{
+      margin-top: 10px;
+    }
+
     .score-area {
       margin-top: 14px;
       padding: 11px;
@@ -2729,9 +2777,6 @@
           ${escapeHtml(
             product.title
           )}
-          <div class="viral-badge">
-            🚀 Potencial de conteúdo: ${viralScore}/100
-          </div>
         </div>
 
 
@@ -2740,47 +2785,58 @@
         ${commissionHtml}
 
 
-        <div class="info-list">
+        <details class="more-details">
+          <summary>ℹ️ Mais detalhes</summary>
 
-          ${badges}
+          <div class="more-details-content">
 
-          <span class="tag">
-            ✓ ${
-              escapeHtml(
-                product.condition ||
-                "Novo"
-              )
-            }
-          </span>
+            <div class="viral-badge">
+              🚀 Potencial de conteúdo: ${viralScore}/100
+            </div>
 
-        </div>
+            <div class="info-list">
+
+              ${badges}
+
+              <span class="tag">
+                ✓ ${
+                  escapeHtml(
+                    product.condition ||
+                    "Novo"
+                  )
+                }
+              </span>
+
+            </div>
+
+            <div class="score-area">
+
+              <div class="score-title">
+
+                <span>
+                  Potencial da oportunidade
+                </span>
+
+                <span>
+                  ${score}/100
+                </span>
+
+              </div>
 
 
-        <div class="score-area">
+              <div class="score-bar">
 
-          <div class="score-title">
+                <div
+                  class="score-fill"
+                  style="width:${score}%"
+                ></div>
 
-            <span>
-              Potencial da oportunidade
-            </span>
+              </div>
 
-            <span>
-              ${score}/100
-            </span>
+            </div>
 
           </div>
-
-
-          <div class="score-bar">
-
-            <div
-              class="score-fill"
-              style="width:${score}%"
-            ></div>
-
-          </div>
-
-        </div>
+        </details>
 
 
         <div class="actions">
