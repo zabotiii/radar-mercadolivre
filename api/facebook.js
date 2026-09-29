@@ -107,11 +107,37 @@ module.exports = async (req, res) => {
         name: page.name
       }));
 
+      // Diagnóstico seguro: nunca devolve tokens ao navegador.
+      let permissions = [];
+      try {
+        const permUrl =
+          "https://graph.facebook.com/v26.0/me/permissions?" +
+          new URLSearchParams({
+            access_token: fb.user_access_token
+          }).toString();
+
+        const permResponse = await fetch(permUrl);
+        const permData = await permResponse.json();
+
+        if (permResponse.ok) {
+          permissions = (permData.data || []).map(item => ({
+            permission: item.permission,
+            status: item.status
+          }));
+        }
+      } catch (_) {
+        // O diagnóstico de permissões é opcional; não impede a listagem.
+      }
+
       return res.status(200).json({
         connected: true,
         selectedPageId: fb.page_id || null,
         selectedPageName: fb.page_name || null,
-        pages
+        pages,
+        debug: {
+          page_count: pages.length,
+          permissions
+        }
       });
     }
 
