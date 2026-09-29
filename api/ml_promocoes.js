@@ -422,7 +422,7 @@ function buildCandidate({
       })
   };
 
-  return product;
+  return addCommission(product, categoryName);
 }
 
 async function processCategory(
