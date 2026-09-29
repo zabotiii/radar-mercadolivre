@@ -8,16 +8,15 @@ function json(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
-async function mlFetch(path, token, options = {}) {
+async function mlFetch(path, token) {
   try {
     const response = await fetch(
       "https://api.mercadolibre.com" + path,
       {
-        method: options.method || "GET",
+        method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-          ...(options.headers || {})
+          Accept: "application/json"
         }
       }
     );
@@ -35,6 +34,7 @@ async function mlFetch(path, token, options = {}) {
       status: response.status,
       data
     };
+
   } catch (error) {
     return {
       ok: false,
@@ -46,15 +46,11 @@ async function mlFetch(path, token, options = {}) {
 }
 
 /*
-  Categorias principais.
-
-  O /highlights exige uma categoria que tenha
-  ranking de mais vendidos disponível.
-
-  Para evitar depender de uma categoria fixa,
-  procuramos automaticamente uma subcategoria
-  forte e depois consultamos o ranking.
+====================================================
+CATEGORIAS
+====================================================
 */
+
 const CATEGORIAS = {
   todas: {
     nome: "Todas",
@@ -66,7 +62,27 @@ const CATEGORIAS = {
     raiz: "MLB1051"
   },
 
+  celular: {
+    nome: "Celulares",
+    raiz: "MLB1051"
+  },
+
   eletronicos: {
+    nome: "Eletrônicos",
+    raiz: "MLB1000"
+  },
+
+  eletrônico: {
+    nome: "Eletrônicos",
+    raiz: "MLB1000"
+  },
+
+  eletronico: {
+    nome: "Eletrônicos",
+    raiz: "MLB1000"
+  },
+
+  eletrônicos: {
     nome: "Eletrônicos",
     raiz: "MLB1000"
   },
@@ -81,7 +97,17 @@ const CATEGORIAS = {
     raiz: "MLB1648"
   },
 
+  informática: {
+    nome: "Informática",
+    raiz: "MLB1648"
+  },
+
   games: {
+    nome: "Games",
+    raiz: "MLB1144"
+  },
+
+  game: {
     nome: "Games",
     raiz: "MLB1144"
   },
@@ -93,9 +119,53 @@ const CATEGORIAS = {
 };
 
 /*
-  Consulta detalhes da categoria.
+====================================================
+NORMALIZA CATEGORIA
+====================================================
 */
-async function categoria(id, token) {
+
+function normalizarCategoria(valor) {
+
+  let categoria =
+    String(valor || "todas")
+      .trim()
+      .toLowerCase();
+
+  categoria =
+    categoria
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+  const mapa = {
+    todas: "todas",
+
+    celular: "celulares",
+    celulares: "celulares",
+
+    eletronico: "eletronicos",
+    eletronicos: "eletronicos",
+
+    casa: "casa",
+
+    informatica: "informatica",
+
+    game: "games",
+    games: "games",
+
+    moda: "moda"
+  };
+
+  return mapa[categoria] || categoria;
+}
+
+/*
+====================================================
+CATEGORIA DO MERCADO LIVRE
+====================================================
+*/
+
+async function buscarCategoria(id, token) {
+
   return await mlFetch(
     `/categories/${encodeURIComponent(id)}`,
     token
@@ -103,26 +173,31 @@ async function categoria(id, token) {
 }
 
 /*
-  Encontra uma categoria folha.
-
-  O Mercado Livre informa que /highlights por
-  categoria funciona para categorias que possuem
-  ranking de mais vendidos disponível.
+====================================================
+BUSCAR SUBCATEGORIAS
+====================================================
 */
+
 async function encontrarCategoriasRanking(
   raiz,
   token
 ) {
-  const resultado = await categoria(
-    raiz,
-    token
-  );
 
-  if (!resultado.ok || !resultado.data) {
+  const resultado =
+    await buscarCategoria(
+      raiz,
+      token
+    );
+
+  if (
+    !resultado.ok ||
+    !resultado.data
+  ) {
     return [];
   }
 
-  const dados = resultado.data;
+  const dados =
+    resultado.data;
 
   if (
     !Array.isArray(
@@ -133,11 +208,6 @@ async function encontrarCategoriasRanking(
     return [raiz];
   }
 
-  /*
-    Pegamos as subcategorias com maior quantidade
-    de produtos. Assim não ficamos presos a uma
-    categoria pequena.
-  */
   const filhos =
     dados.children_categories
       .slice()
@@ -146,16 +216,17 @@ async function encontrarCategoriasRanking(
           (b.total_items_in_this_category || 0) -
           (a.total_items_in_this_category || 0)
       )
-      .slice(0, 4);
+      .slice(0, 5);
 
   const encontradas = [];
 
-  /*
-    Tentamos primeiro os filhos.
-  */
-  for (const filho of filhos) {
+  for (
+    const filho
+    of filhos
+  ) {
+
     const sub =
-      await categoria(
+      await buscarCategoria(
         filho.id,
         token
       );
@@ -167,27 +238,24 @@ async function encontrarCategoriasRanking(
       continue;
     }
 
-    const subDados =
+    const dadosSub =
       sub.data;
 
     if (
       !Array.isArray(
-        subDados.children_categories
+        dadosSub.children_categories
       ) ||
-      subDados.children_categories.length === 0
+      dadosSub.children_categories.length === 0
     ) {
       encontradas.push(
         filho.id
       );
+
       continue;
     }
 
-    /*
-      Se ainda possui filhos,
-      escolhemos os maiores deles.
-    */
     const netos =
-      subDados.children_categories
+      dadosSub.children_categories
         .slice()
         .sort(
           (a, b) =>
@@ -196,16 +264,16 @@ async function encontrarCategoriasRanking(
         )
         .slice(0, 3);
 
-    for (const neto of netos) {
+    for (
+      const neto
+      of netos
+    ) {
       encontradas.push(
         neto.id
       );
     }
   }
 
-  /*
-    Remove duplicados.
-  */
   return [
     ...new Set(
       encontradas
@@ -214,12 +282,16 @@ async function encontrarCategoriasRanking(
 }
 
 /*
-  Consulta os mais vendidos de uma categoria.
+====================================================
+HIGHLIGHTS
+====================================================
 */
+
 async function highlights(
   categoryId,
   token
 ) {
+
   return await mlFetch(
     `/highlights/${SITE_ID}/category/${encodeURIComponent(categoryId)}`,
     token
@@ -227,12 +299,16 @@ async function highlights(
 }
 
 /*
-  Consulta um anúncio real.
+====================================================
+ITEM
+====================================================
 */
-async function item(
+
+async function buscarItem(
   itemId,
   token
 ) {
+
   return await mlFetch(
     `/items/${encodeURIComponent(itemId)}`,
     token
@@ -240,16 +316,16 @@ async function item(
 }
 
 /*
-  Consulta preços atuais.
-
-  A API de preços informa os tipos:
-  - standard
-  - promotion
+====================================================
+PREÇOS
+====================================================
 */
-async function precos(
+
+async function buscarPrecos(
   itemId,
   token
 ) {
+
   return await mlFetch(
     `/items/${encodeURIComponent(itemId)}/prices`,
     token
@@ -257,11 +333,15 @@ async function precos(
 }
 
 /*
-  Extrai o preço promocional.
+====================================================
+ANALISAR PROMOÇÃO
+====================================================
 */
+
 function analisarPrecos(
   dados
 ) {
+
   if (
     !dados ||
     !Array.isArray(
@@ -285,7 +365,8 @@ function analisarPrecos(
 
   if (
     !promotion ||
-    typeof promotion.amount !== "number"
+    typeof promotion.amount !==
+      "number"
   ) {
     return null;
   }
@@ -308,7 +389,8 @@ function analisarPrecos(
   if (
     original === null &&
     standard &&
-    typeof standard.amount === "number" &&
+    typeof standard.amount ===
+      "number" &&
     standard.amount > atual
   ) {
     original =
@@ -324,44 +406,56 @@ function analisarPrecos(
 
   const desconto =
     Math.round(
-      ((original - atual) /
-        original) *
-        100
+      (
+        (original - atual) /
+        original
+      ) * 100
     );
 
   return {
     preco: atual,
     preco_original: original,
-    desconto,
-    tipo_preco: "promotion"
+    desconto
   };
 }
 
 /*
-  Converte um item do Mercado Livre
-  para o formato usado pelo Radar.
+====================================================
+MONTAR PRODUTO
+====================================================
 */
+
 function montarProduto(
   dados,
   ranking,
   categoriaNome,
   preco
 ) {
-  const imagem =
-    dados.pictures &&
-    dados.pictures[0]
-      ? (
-          dados.pictures[0].secure_url ||
-          dados.pictures[0].url ||
-          null
-        )
-      : (
-          dados.thumbnail ||
-          null
-        );
+
+  let imagem = null;
+
+  if (
+    Array.isArray(
+      dados.pictures
+    ) &&
+    dados.pictures.length
+  ) {
+    imagem =
+      dados.pictures[0].secure_url ||
+      dados.pictures[0].url ||
+      null;
+  }
+
+  if (!imagem) {
+    imagem =
+      dados.thumbnail ||
+      null;
+  }
 
   return {
-    id: dados.id,
+
+    id:
+      dados.id,
 
     item_id:
       dados.id,
@@ -378,7 +472,8 @@ function montarProduto(
       preco
         ? preco.preco
         : (
-            typeof dados.price === "number"
+            typeof dados.price ===
+              "number"
               ? dados.price
               : null
           ),
@@ -387,7 +482,8 @@ function montarProduto(
       preco
         ? preco.preco
         : (
-            typeof dados.price === "number"
+            typeof dados.price ===
+              "number"
               ? dados.price
               : null
           ),
@@ -416,7 +512,6 @@ function montarProduto(
       imagem,
 
     imagem:
-
       imagem,
 
     permalink:
@@ -435,7 +530,7 @@ function montarProduto(
       categoriaNome,
 
     ranking:
-      ranking,
+      ranking || null,
 
     mais_vendido:
       true,
@@ -463,13 +558,17 @@ function montarProduto(
 }
 
 /*
-  Processa uma categoria.
+====================================================
+PROCESSAR CATEGORIA
+====================================================
 */
+
 async function processarCategoria(
   categoryId,
   categoriaNome,
   token
 ) {
+
   const ranking =
     await highlights(
       categoryId,
@@ -480,6 +579,7 @@ async function processarCategoria(
     !ranking.ok ||
     !ranking.data
   ) {
+
     return {
       produtos: [],
       erro: {
@@ -505,15 +605,6 @@ async function processarCategoria(
       ? ranking.data.content
       : [];
 
-  /*
-    O ranking pode trazer:
-    ITEM
-    PRODUCT
-    USER_PRODUCT
-
-    Neste MVP vamos trabalhar primeiro
-    com ITEM porque é o anúncio real.
-  */
   const itens =
     content.filter(
       x =>
@@ -525,18 +616,26 @@ async function processarCategoria(
   const produtos = [];
 
   /*
-    No máximo 8 anúncios por categoria,
-    para evitar timeout no Vercel.
+    Limite para evitar timeout.
   */
+
   const candidatos =
-    itens.slice(0, 8);
+    itens.slice(
+      0,
+      10
+    );
+
+  /*
+    Processa os anúncios.
+  */
 
   for (
     const candidato
     of candidatos
   ) {
+
     const detalhe =
-      await item(
+      await buscarItem(
         candidato.id,
         token
       );
@@ -552,7 +651,7 @@ async function processarCategoria(
       detalhe.data;
 
     const precoDados =
-      await precos(
+      await buscarPrecos(
         candidato.id,
         token
       );
@@ -580,12 +679,20 @@ async function processarCategoria(
   };
 }
 
+/*
+====================================================
+HANDLER
+====================================================
+*/
+
 module.exports =
   async function handler(
     req,
     res
   ) {
+
     try {
+
       const sessao =
         await session(
           req,
@@ -596,6 +703,7 @@ module.exports =
         !sessao ||
         !sessao.access_token
       ) {
+
         return json(
           res,
           401,
@@ -609,71 +717,91 @@ module.exports =
       const token =
         sessao.access_token;
 
+      /*
+        Pega a categoria enviada
+        pela tela.
+      */
+
+      const categoriaOriginal =
+        req.query &&
+        req.query.categoria
+          ? req.query.categoria
+          : "todas";
+
       const categoriaParam =
-        String(
-          req.query?.categoria ||
-          "todas"
-        ).toLowerCase();
+        normalizarCategoria(
+          categoriaOriginal
+        );
 
       /*
-        Se for "todas", buscamos as
-        principais categorias.
+        Lista de categorias.
       */
-      let categoriasSelecionadas =
-        [];
+
+      const categoriasBase = {
+
+        celulares: {
+          nome: "Celulares",
+          raiz: "MLB1051"
+        },
+
+        eletronicos: {
+          nome: "Eletrônicos",
+          raiz: "MLB1000"
+        },
+
+        casa: {
+          nome: "Casa",
+          raiz: "MLB1574"
+        },
+
+        informatica: {
+          nome: "Informática",
+          raiz: "MLB1648"
+        },
+
+        games: {
+          nome: "Games",
+          raiz: "MLB1144"
+        },
+
+        moda: {
+          nome: "Moda",
+          raiz: "MLB1430"
+        }
+      };
+
+      let categoriasSelecionadas = [];
+
+      /*
+        TODAS
+      */
 
       if (
-        categoriaParam === "todas"
+        categoriaParam ===
+        "todas"
       ) {
-        categoriasSelecionadas =
-          [
-            {
-              chave: "celulares",
-              nome: "Celulares",
-              raiz: "MLB1051"
-            },
-            {
-              chave: "eletronicos",
-              nome: "Eletrônicos",
-              raiz: "MLB1000"
-            },
-            {
-              chave: "casa",
-              nome: "Casa",
-              raiz: "MLB1574"
-            },
-            {
-              chave: "informatica",
-              nome: "Informática",
-              raiz: "MLB1648"
-            },
-            {
-              chave: "games",
-              nome: "Games",
-              raiz: "MLB1144"
-            },
-            {
-              chave: "moda",
-              nome: "Moda",
-              raiz: "MLB1430"
-            }
-          ];
-      } else {
-        const config =
-          CATEGORIAS[
-            categoriaParam
-          ];
 
-        if (!config) {
-          return json(
-            res,
-            400,
-            {
-              error:
-                "Categoria inválida."
-            }
+        categoriasSelecionadas =
+          Object.entries(
+            categoriasBase
+          ).map(
+            ([chave, valor]) => ({
+              chave,
+              ...valor
+            })
           );
-        }
+
+      }
+
+      /*
+        CATEGORIA ESPECÍFICA
+      */
+
+      else if (
+        categoriasBase[
+          categoriaParam
+        ]
+      ) {
 
         categoriasSelecionadas =
           [
@@ -681,32 +809,58 @@ module.exports =
               chave:
                 categoriaParam,
 
-              nome:
-                config.nome,
-
-              raiz:
-                config.raiz
+              ...categoriasBase[
+                categoriaParam
+              ]
             }
           ];
+
       }
 
-      const todos =
-        [];
+      /*
+        CATEGORIA DESCONHECIDA
+      */
 
-      const erros =
-        [];
+      else {
+
+        return json(
+          res,
+          400,
+          {
+            error:
+              "Categoria inválida.",
+
+            categoria_recebida:
+              categoriaOriginal,
+
+            categoria_normalizada:
+              categoriaParam,
+
+            categorias_validas:
+              [
+                "todas",
+                "celulares",
+                "eletronicos",
+                "casa",
+                "informatica",
+                "games",
+                "moda"
+              ]
+          }
+        );
+      }
+
+      const todos = [];
+      const erros = [];
 
       /*
-        Primeiro descobrimos categorias
-        com ranking.
+        Processa categorias.
       */
+
       for (
         const categoria
         of categoriasSelecionadas
       ) {
-        if (!categoria.raiz) {
-          continue;
-        }
 
         const folhas =
           await encontrarCategoriasRanking(
@@ -714,22 +868,22 @@ module.exports =
             token
           );
 
-        /*
-          Se a própria raiz funcionar,
-          ela também pode ser usada.
-        */
         const candidatas =
           [
             ...new Set([
               ...folhas,
               categoria.raiz
             ])
-          ].slice(0, 4);
+          ].slice(
+            0,
+            4
+          );
 
         for (
           const categoryId
           of candidatas
         ) {
+
           const resultado =
             await processarCategoria(
               categoryId,
@@ -752,23 +906,23 @@ module.exports =
       }
 
       /*
-        Remove anúncios duplicados.
+        Remove duplicados.
       */
-      const unicos =
-        [];
 
-      const ids =
-        new Set();
+      const unicos = [];
+      const ids = new Set();
 
       for (
         const produto
         of todos
       ) {
+
         if (
           !ids.has(
             produto.id
           )
         ) {
+
           ids.add(
             produto.id
           );
@@ -781,14 +935,16 @@ module.exports =
 
       /*
         Promoções primeiro.
-        Depois, mais vendidos.
       */
+
       unicos.sort(
         (a, b) => {
+
           if (
             Boolean(b.promocao) !==
             Boolean(a.promocao)
           ) {
+
             return b.promocao
               ? 1
               : -1;
@@ -798,6 +954,7 @@ module.exports =
             (b.desconto || 0) !==
             (a.desconto || 0)
           ) {
+
             return (
               (b.desconto || 0) -
               (a.desconto || 0)
@@ -811,10 +968,6 @@ module.exports =
         }
       );
 
-      /*
-        Limita a resposta para manter
-        o carregamento rápido.
-      */
       const produtos =
         unicos.slice(
           0,
@@ -831,6 +984,7 @@ module.exports =
         res,
         200,
         {
+
           ok: true,
 
           categoria:
@@ -860,6 +1014,7 @@ module.exports =
       );
 
     } catch (error) {
+
       console.error(
         "ERRO ML PROMOCOES:",
         error
