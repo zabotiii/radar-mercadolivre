@@ -2478,6 +2478,41 @@
   }
 
 
+  function scoreFacebookGroup(group, product) {
+    const text = (
+      String(group.name || "") + " " +
+      String(group.snippet || "")
+    ).toLowerCase();
+
+    const title = String(product.title || "").toLowerCase();
+    const words = title
+      .replace(/[^a-záàâãéêíóôõúç0-9 ]/gi, " ")
+      .split(/\s+/)
+      .filter(w => w.length >= 4);
+
+    const stop = new Set([
+      "para","com","uma","como","novo","nova","original",
+      "mercado","livre","produto","unidade","branco","branca",
+      "preto","preta","tamanho"
+    ]);
+
+    const keywords = [...new Set(words.filter(w => !stop.has(w)))].slice(0, 8);
+
+    let score = 0;
+
+    for (const word of keywords) {
+      if (text.includes(word)) score += 12;
+    }
+
+    if (/oferta|ofertas|promo|promoção|promocao|desconto|achadinho|achadinhos|compras|shopping/i.test(text)) {
+      score += 8;
+    }
+
+    if (/grupo|grupos/i.test(text)) score += 2;
+
+    return score;
+  }
+
   async function findFacebookGroupsAutomatically() {
     const product = currentProducts.find(p =>
       (p.title || "Produto") === document.getElementById("facebookGroupsProduct").textContent
@@ -2517,11 +2552,20 @@
         return;
       }
 
-      box.innerHTML = data.results.map((group, index) =>
+      const rankedGroups = data.results
+        .map(group => ({
+          ...group,
+          relevance: scoreFacebookGroup(group, product)
+        }))
+        .sort((a, b) => b.relevance - a.relevance);
+
+      box.innerHTML = rankedGroups.map((group, index) =>
         '<div class="saved-group">' +
           '<div class="saved-group-info">' +
             (index + 1) + '. ' + escapeHtml(group.name || "Grupo Facebook") +
-            '<small>' + escapeHtml(group.snippet || "Grupo público relacionado ao produto") + '</small>' +
+            '<small>' + escapeHtml(group.snippet || "Grupo público relacionado ao produto") +
+            (group.relevance >= 20 ? ' • 🎯 Alta relevância' : group.relevance >= 10 ? ' • 🟡 Relevante' : '') +
+            '</small>' +
           '</div>' +
           '<div class="saved-group-actions">' +
             '<button class="group-mini-button" onclick="window.open(\'' +
