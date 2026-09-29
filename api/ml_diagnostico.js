@@ -9,29 +9,15 @@ function json(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
-module.exports = async function handler(req, res) {
+async function consultar(url, accessToken) {
   try {
-    const sessao = await session(req, res);
-
-    if (!sessao || !sessao.access_token) {
-      return json(res, 401, {
-        connected: false,
-        error: "Mercado Livre não conectado."
-      });
-    }
-
-    const appId = process.env.ML_CLIENT_ID;
-
-    const resposta = await fetch(
-      `https://api.mercadolibre.com/applications/${appId}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${sessao.access_token}`,
-          Accept: "application/json"
-        }
+    const resposta = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json"
       }
-    );
+    });
 
     let dados = null;
 
@@ -41,89 +27,180 @@ module.exports = async function handler(req, res) {
       dados = null;
     }
 
-    return json(res, 200, {
-      token_valido: true,
+    return {
+      sucesso: resposta.ok,
+      status: resposta.status,
+      dados
+    };
 
-      status_api: resposta.status,
-
-      aplicacao: dados
-    });
-
-  } catch (error) {
-    console.error(
-      "ERRO DIAGNOSTICO:",
-      error
-    );
-
-    return json(res, 500, {
-      error: "Erro no diagnóstico.",
-      message:
-        error.message ||
-        String(error)
-    });
+  } catch (erro) {
+    return {
+      sucesso: false,
+      status: 0,
+      erro:
+        erro.message ||
+        String(erro)
+    };
   }
-};const { session } = require("./lib");
-
-function json(res, status, data) {
-  res.statusCode = status;
-  res.setHeader(
-    "Content-Type",
-    "application/json; charset=utf-8"
-  );
-  res.end(JSON.stringify(data));
 }
 
 module.exports = async function handler(req, res) {
   try {
+
+    /*
+     * Recupera a sessão já utilizada pelo Radar.
+     */
     const sessao = await session(req, res);
 
-    if (!sessao || !sessao.access_token) {
+    if (
+      !sessao ||
+      !sessao.access_token
+    ) {
       return json(res, 401, {
-        connected: false,
-        error: "Mercado Livre não conectado."
+        conectado: false,
+        erro:
+          "Não existe uma sessão válida do Mercado Livre."
       });
     }
 
-    const appId = process.env.ML_CLIENT_ID;
+    const appId =
+      process.env.ML_CLIENT_ID;
 
-    const resposta = await fetch(
-      `https://api.mercadolibre.com/applications/${appId}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${sessao.access_token}`,
-          Accept: "application/json"
-        }
-      }
-    );
+    const userId =
+      sessao.user_id;
 
-    let dados = null;
-
-    try {
-      dados = await resposta.json();
-    } catch (e) {
-      dados = null;
+    if (!appId) {
+      return json(res, 500, {
+        erro:
+          "ML_CLIENT_ID não está configurado no Vercel."
+      });
     }
 
+    /*
+     * =====================================================
+     * TESTE 1
+     * Detalhes da aplicação
+     * =====================================================
+     */
+
+    const aplicacao =
+      await consultar(
+        `https://api.mercadolibre.com/applications/${appId}`,
+        sessao.access_token
+      );
+
+    /*
+     * =====================================================
+     * TESTE 2
+     * Aplicações autorizadas pelo usuário
+     * =====================================================
+     */
+
+    let grants = null;
+
+    if (userId) {
+
+      grants =
+        await consultar(
+          `https://api.mercadolibre.com/users/${userId}/applications`,
+          sessao.access_token
+        );
+
+    }
+
+    /*
+     * =====================================================
+     * TESTE 3
+     * Usuário atual
+     * =====================================================
+     */
+
+    const usuario =
+      await consultar(
+        "https://api.mercadolibre.com/users/me",
+        sessao.access_token
+      );
+
+    /*
+     * =====================================================
+     * RESULTADO
+     * =====================================================
+     */
+
     return json(res, 200, {
-      token_valido: true,
 
-      status_api: resposta.status,
+      diagnostico: "OK",
 
-      aplicacao: dados
+      app_id:
+        appId,
+
+      user_id:
+        userId || null,
+
+      token_funcionando:
+        usuario.status === 200,
+
+      usuario: {
+        status:
+          usuario.status,
+
+        resposta:
+          usuario.dados
+      },
+
+      aplicacao: {
+        status:
+          aplicacao.status,
+
+        resposta:
+          aplicacao.dados,
+
+        erro:
+          aplicacao.erro || null
+      },
+
+      autorizacao_usuario: {
+        status:
+          grants
+            ? grants.status
+            : null,
+
+        resposta:
+          grants
+            ? grants.dados
+            : null,
+
+        erro:
+          grants
+            ? grants.erro || null
+            : null
+      },
+
+      observacao:
+        "Este endpoint é apenas diagnóstico e não altera nenhuma configuração."
     });
 
-  } catch (error) {
+  } catch (erro) {
+
     console.error(
-      "ERRO DIAGNOSTICO:",
-      error
+      "ERRO DIAGNOSTICO ML:",
+      erro
     );
 
     return json(res, 500, {
-      error: "Erro no diagnóstico.",
-      message:
-        error.message ||
-        String(error)
+
+      diagnostico:
+        "ERRO",
+
+      mensagem:
+        erro.message ||
+        String(erro),
+
+      stack:
+        process.env.NODE_ENV ===
+        "development"
+          ? erro.stack
+          : undefined
     });
   }
 };
