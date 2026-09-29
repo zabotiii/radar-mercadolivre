@@ -790,7 +790,7 @@
 
       <a
         class="affiliate-open"
-        href="https://www.mercadolivre.com.br/l/afiliados-gere-seus-links"
+        href="https://www.mercadolivre.com.br/l/visite-o-portal-de-afiliados"
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -1179,17 +1179,23 @@
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(productUrl);
-      showToast("🔗 Link do produto copiado. Cole no Gerador do Mercado Livre.");
-    } catch (error) {
-      showToast("Abra o gerador e copie o link do produto manualmente.");
-    }
-
-    window.open(
-      "https://www.mercadolivre.com.br/l/afiliados-gere-seus-links",
+    // Abre a aba imediatamente, dentro do clique do usuário,
+    // para evitar que o navegador bloqueie o popup.
+    const portalWindow = window.open(
+      "https://www.mercadolivre.com.br/l/visite-o-portal-de-afiliados",
       "_blank"
     );
+
+    if (!portalWindow) {
+      showToast("⚠️ O navegador bloqueou a nova aba. Permita pop-ups para o Radar.");
+    }
+
+    try {
+      await navigator.clipboard.writeText(productUrl);
+      showToast("🔗 Link do produto copiado! No Mercado Livre, abra o Gerador de Links e cole.");
+    } catch (error) {
+      showToast("🔗 Copie o link do produto mostrado abaixo e cole no Gerador.");
+    }
   }
 
 
