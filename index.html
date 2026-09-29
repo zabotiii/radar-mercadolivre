@@ -168,32 +168,23 @@
     .affiliate-help {
       font-size: 13px;
       color: #666;
-      margin-bottom: 10px;
+      line-height: 1.45;
     }
 
-    .affiliate-row {
-      display: flex;
-      gap: 10px;
-    }
-
-    .affiliate-row input {
-      flex: 1;
-      padding: 12px;
-      border: 1px solid #ccc;
-      border-radius: 9px;
-      font-size: 14px;
-    }
-
-    .affiliate-row button {
+    .affiliate-open {
+      display: inline-block;
+      margin-top: 11px;
       border: 0;
       border-radius: 9px;
-      padding: 0 18px;
+      padding: 10px 14px;
       background: #222;
       color: white;
       font-weight: 800;
+      text-decoration: none;
+      font-size: 13px;
     }
 
-    /* PROMOÇÕES DO DIA */
+    /* PROMOÇÕES DO DIA */    /* PROMOÇÕES DO DIA */
 
     .daily-box {
       background: linear-gradient(135deg, #fff 0%, #fffbea 100%);
@@ -540,6 +531,100 @@
       margin-top: 40px;
     }
 
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.58);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 200;
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .affiliate-modal {
+      width: min(560px, 100%);
+      background: white;
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 15px 50px rgba(0,0,0,.25);
+    }
+
+    .affiliate-modal h3 {
+      margin: 0 0 7px;
+      font-size: 21px;
+    }
+
+    .affiliate-modal-product {
+      color: #555;
+      font-size: 14px;
+      line-height: 1.4;
+      margin-bottom: 15px;
+    }
+
+    .affiliate-step {
+      background: #f7f8fa;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .affiliate-step strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .affiliate-product-url,
+    .affiliate-modal input {
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 9px;
+      padding: 11px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .affiliate-product-url {
+      background: #fafafa;
+      margin-top: 7px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    .modal-actions button {
+      flex: 1;
+      border: 0;
+      border-radius: 10px;
+      padding: 12px;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .modal-open-generator {
+      background: #ffe600;
+      color: #222;
+    }
+
+    .modal-save {
+      background: #39a852;
+      color: white;
+    }
+
+    .modal-close {
+      background: #eee;
+      color: #222;
+    }
+
     .toast {
       position: fixed;
       left: 50%;
@@ -587,6 +672,10 @@
       }
 
       .affiliate-row {
+        flex-direction: column;
+      }
+
+      .modal-actions {
         flex-direction: column;
       }
 
@@ -690,32 +779,28 @@
     <div class="affiliate-box">
 
       <div class="affiliate-title">
-        🔗 Seu link de afiliado
+        🔗 Link de afiliado por produto
       </div>
 
       <div class="affiliate-help">
-        Cole aqui o link de afiliado específico da oferta
-        gerado oficialmente pelo Mercado Livre.
+        Cada oferta terá seu próprio link de afiliado. No card do produto,
+        clique em <strong>GERAR LINK AFILIADO</strong>. O Radar abre o
+        Gerador de Links oficial do Mercado Livre e salva o link naquele produto.
       </div>
 
-      <div class="affiliate-row">
-
-        <input
-          id="affiliateLink"
-          type="text"
-          placeholder="Cole aqui seu link de afiliado..."
-        >
-
-        <button onclick="saveAffiliateLink()">
-          SALVAR
-        </button>
-
-      </div>
+      <a
+        class="affiliate-open"
+        href="https://www.mercadolivre.com.br/l/afiliados-gere-seus-links"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        🔗 ABRIR GERADOR DE LINKS DO MERCADO LIVRE
+      </a>
 
     </div>
 
 
-    <div id="notice" class="notice"></div>
+    <div id="notice" class="notice"></div>    <div id="notice" class="notice"></div>
 
   </section>
 
@@ -856,6 +941,71 @@
 </main>
 
 
+<div
+  id="affiliateModal"
+  class="modal-backdrop"
+  onclick="if(event.target===this) closeAffiliateModal()"
+>
+  <div class="affiliate-modal">
+
+    <h3>🔗 Link de afiliado</h3>
+
+    <div id="affiliateModalProduct" class="affiliate-modal-product"></div>
+
+    <div class="affiliate-step">
+      <strong>1️⃣ Link do produto</strong>
+      O Radar copia automaticamente o link abaixo quando você abrir o gerador.
+      <input
+        id="affiliateProductUrl"
+        class="affiliate-product-url"
+        type="text"
+        readonly
+      >
+    </div>
+
+    <div class="affiliate-step">
+      <strong>2️⃣ Gerar no Mercado Livre</strong>
+      Clique em ABRIR GERADOR. O Mercado Livre abrirá em outra aba.
+      Cole o link do produto, gere seu link de afiliado e copie o resultado.
+    </div>
+
+    <div class="modal-actions">
+      <button
+        class="modal-open-generator"
+        onclick="openOfficialAffiliateGenerator()"
+      >
+        🔗 ABRIR GERADOR
+      </button>
+
+      <button
+        class="modal-close"
+        onclick="closeAffiliateModal()"
+      >
+        FECHAR
+      </button>
+    </div>
+
+    <div class="affiliate-step" style="margin-top:15px">
+      <strong>3️⃣ Cole o link gerado</strong>
+      <input
+        id="affiliateGeneratedLink"
+        type="text"
+        placeholder="https://meli.la/..."
+      >
+    </div>
+
+    <div class="modal-actions">
+      <button
+        class="modal-save"
+        onclick="saveProductAffiliateLink()"
+      >
+        ✅ SALVAR NESTE PRODUTO
+      </button>
+    </div>
+
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 
@@ -863,9 +1013,11 @@
 
   let currentProducts = [];
 
-  let affiliateLink = "";
+  let affiliateLinksByProduct = {};
 
   let selectedDailyCategory = "todas";
+
+  let affiliateProductIndex = null;
 
 
   // =========================================================
@@ -946,76 +1098,133 @@
 
 
   // =========================================================
-  // LINK DE AFILIADO
-  // =========================================================
+  // LINKS DE AFILIADO POR PRODUTO
 
-  function loadAffiliateLink() {
-
-    try {
-
-      const saved =
-        localStorage.getItem(
-          "radarAffiliateLink"
-        );
-
-      if (saved) {
-
-        affiliateLink = saved;
-
-        document.getElementById(
-          "affiliateLink"
-        ).value = saved;
-
-      }
-
-    } catch (error) {
-
-      console.error(error);
-
-    }
-
+  function getProductKey(product) {
+    if (!product) return "";
+    return String(
+      product.item_id ||
+      product.id ||
+      product.product_id ||
+      product.permalink ||
+      ""
+    );
   }
 
 
-  function saveAffiliateLink() {
+  function loadAffiliateLinks() {
+    try {
+      const saved = localStorage.getItem("radarAffiliateLinksByProduct");
+      affiliateLinksByProduct = saved ? JSON.parse(saved) : {};
+      if (!affiliateLinksByProduct || typeof affiliateLinksByProduct !== "object") {
+        affiliateLinksByProduct = {};
+      }
+    } catch (error) {
+      affiliateLinksByProduct = {};
+      console.error(error);
+    }
+  }
 
-    const input =
-      document.getElementById(
-        "affiliateLink"
+
+  function saveAffiliateLinks() {
+    try {
+      localStorage.setItem(
+        "radarAffiliateLinksByProduct",
+        JSON.stringify(affiliateLinksByProduct)
       );
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
-    const value =
-      input.value.trim();
 
-    if (!value) {
+  function getAffiliateLink(product) {
+    const key = getProductKey(product);
+    return key ? (affiliateLinksByProduct[key] || "") : "";
+  }
 
-      showNotice(
-        "Cole primeiro seu link de afiliado."
-      );
 
+  function openAffiliateModal(index) {
+    const product = currentProducts[index];
+    if (!product) return;
+
+    affiliateProductIndex = index;
+
+    document.getElementById("affiliateModalProduct").textContent =
+      product.title || "Produto Mercado Livre";
+
+    document.getElementById("affiliateProductUrl").value =
+      product.permalink || "";
+
+    document.getElementById("affiliateGeneratedLink").value =
+      getAffiliateLink(product);
+
+    document.getElementById("affiliateModal").classList.add("show");
+  }
+
+
+  function closeAffiliateModal() {
+    document.getElementById("affiliateModal").classList.remove("show");
+    affiliateProductIndex = null;
+  }
+
+
+  async function openOfficialAffiliateGenerator() {
+    const product = currentProducts[affiliateProductIndex];
+    if (!product) return;
+
+    const productUrl = product.permalink || "";
+    if (!productUrl) {
+      showToast("❌ O link deste produto está indisponível.");
       return;
     }
 
-    affiliateLink = value;
-
     try {
+      await navigator.clipboard.writeText(productUrl);
+      showToast("🔗 Link do produto copiado. Cole no Gerador do Mercado Livre.");
+    } catch (error) {
+      showToast("Abra o gerador e copie o link do produto manualmente.");
+    }
 
-      localStorage.setItem(
-        "radarAffiliateLink",
-        value
-      );
-
-    } catch (error) {}
-
-    showToast(
-      "✅ Link de afiliado salvo!"
+    window.open(
+      "https://www.mercadolivre.com.br/l/afiliados-gere-seus-links",
+      "_blank"
     );
-
   }
 
 
-  // =========================================================
-  // CONEXÃO MERCADO LIVRE
+  function saveProductAffiliateLink() {
+    const product = currentProducts[affiliateProductIndex];
+    if (!product) return;
+
+    const value = document.getElementById("affiliateGeneratedLink").value.trim();
+    if (!value) {
+      showNotice("Cole o link de afiliado gerado para este produto.");
+      return;
+    }
+
+    const key = getProductKey(product);
+    if (!key) {
+      showNotice("Não foi possível identificar este produto.");
+      return;
+    }
+
+    affiliateLinksByProduct[key] = value;
+    saveAffiliateLinks();
+    closeAffiliateModal();
+    showToast("✅ Link de afiliado salvo neste produto!");
+    renderProducts(currentProducts);
+  }
+
+
+  function affiliateButtonLabel(product) {
+    return getAffiliateLink(product)
+      ? "🔗 LINK AFILIADO SALVO"
+      : "🔗 GERAR LINK AFILIADO";
+  }
+
+
+  // CONEXÃO MERCADO LIVRE  // CONEXÃO MERCADO LIVRE
   // =========================================================
 
   function connectMercadoLivre() {
@@ -1805,12 +2014,19 @@
             🔗 PRODUTO
           </button>
 
+          <button
+            class="action dark"
+            onclick="openAffiliateModal(${index})"
+          >
+            ${affiliateButtonLabel(product)}
+          </button>
+
 
           <button
             class="action dark"
             onclick="copyProductLink(${index})"
           >
-            📋 COPIAR LINK
+            📋 COPIAR LINK AFILIADO
           </button>
 
 
@@ -1879,67 +2095,27 @@
     index
   ) {
 
-    const product =
-      currentProducts[index];
+    const product = currentProducts[index];
+    if (!product) return;
 
-
-    if (!product) {
-      return;
-    }
-
-
-    const link =
-      affiliateLink ||
-      product.permalink ||
-      "";
-
+    const link = getAffiliateLink(product);
 
     if (!link) {
-
-      showToast(
-        "Não existe link disponível."
-      );
-
+      openAffiliateModal(index);
+      showToast("🔗 Gere e salve o link de afiliado deste produto.");
       return;
-
     }
 
-
     try {
-
-      await navigator.clipboard.writeText(
-        link
-      );
-
-
-      if (
-        affiliateLink
-      ) {
-
-        showToast(
-          "🔗 Link de afiliado copiado!"
-        );
-
-      } else {
-
-        showToast(
-          "🔗 Link do produto copiado!"
-        );
-
-      }
-
+      await navigator.clipboard.writeText(link);
+      showToast("🔗 Link de afiliado copiado!");
     } catch (error) {
-
-      showToast(
-        "Não foi possível copiar."
-      );
-
+      showToast("Não foi possível copiar.");
     }
 
   }
 
 
-  // =========================================================
   // POST FACEBOOK
   // =========================================================
 
@@ -2026,10 +2202,7 @@
     }
 
 
-    const link =
-      affiliateLink ||
-      product.permalink ||
-      "";
+    const link = getAffiliateLink(product);
 
 
     const post = `
@@ -2065,6 +2238,14 @@ ${link}
       return;
     }
 
+
+    const affiliateLinkForProduct = getAffiliateLink(product);
+
+    if (!affiliateLinkForProduct) {
+      openAffiliateModal(index);
+      showToast("🔗 Salve primeiro o link de afiliado deste produto.");
+      return;
+    }
 
     const post =
       generateFacebookPost(
@@ -2261,7 +2442,7 @@ ${link}
 
   async function initializeApp() {
 
-    loadAffiliateLink();
+    loadAffiliateLinks();
 
 
     const returnedFromOAuth =
