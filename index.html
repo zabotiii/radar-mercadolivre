@@ -356,6 +356,37 @@
       margin-top: 8px;
     }
 
+    .facebook-groups-button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #1877f2;
+      color: white;
+      font-weight: 900;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .group-link {
+      display: block;
+      padding: 11px 12px;
+      margin-top: 8px;
+      border: 1px solid #e3e5e8;
+      border-radius: 10px;
+      text-decoration: none;
+      color: #222;
+      background: #f8f9fa;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .group-link small {
+      display: block;
+      color: #777;
+      font-weight: 600;
+      margin-top: 3px;
+    }
+
     .top-post-note {
       margin-top: 8px;
       font-size: 12px;
@@ -1149,6 +1180,38 @@
     <div class="modal-actions">
       <button class="modal-open-generator" onclick="copyTopPosts()">📋 COPIAR MELHORES POSTS</button>
       <button class="modal-close" onclick="closeTopPosts()">FECHAR</button>
+    </div>
+  </div>
+</div>
+
+<div
+  id="facebookGroupsModal"
+  class="modal-backdrop"
+  onclick="if(event.target===this) closeFacebookGroups()"
+>
+  <div class="affiliate-modal">
+    <h3>📘 Grupos para este produto</h3>
+    <div id="facebookGroupsProduct" class="affiliate-modal-product"></div>
+
+    <div class="affiliate-step">
+      <strong>🎯 Pesquisas recomendadas</strong>
+      <div id="facebookGroupsList"></div>
+    </div>
+
+    <div class="affiliate-step" style="margin-top:15px">
+      <strong>📋 Como usar</strong>
+      <div style="margin-top:7px;color:#666;font-size:13px;line-height:1.45">
+        Abra uma pesquisa, escolha grupos relacionados ao produto e confira as regras do grupo antes de publicar.
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="modal-open-generator" onclick="copyFacebookSearches()">
+        📋 COPIAR PESQUISAS
+      </button>
+      <button class="modal-close" onclick="closeFacebookGroups()">
+        FECHAR
+      </button>
     </div>
   </div>
 </div>
@@ -2227,6 +2290,13 @@
             🚀 GERAR POST VIRAL
           </button>
 
+          <button
+            class="facebook-groups-button"
+            onclick="openFacebookGroups(${index})"
+          >
+            📘 GRUPOS FACEBOOK
+          </button>
+
         </div>
 
       </div>
@@ -2303,6 +2373,94 @@
       showToast("Não foi possível copiar.");
     }
 
+  }
+
+
+  // GRUPOS / PESQUISAS NO FACEBOOK
+  // =========================================================
+
+  function facebookGroupSearches(product) {
+    const title = String(product.title || "").trim();
+    const words = title
+      .replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, " ")
+      .split(/\s+/)
+      .filter(w => w.length >= 3);
+
+    const stop = new Set([
+      "kit","com","para","por","uma","um","de","da","do","das","dos",
+      "novo","nova","original","oficial","mercado","livre","unidade"
+    ]);
+
+    const keywords = words.filter(w => !stop.has(w.toLowerCase())).slice(0, 4).join(" ");
+    const searches = [];
+
+    if (keywords) searches.push({
+      label: "Grupos sobre " + keywords,
+      query: keywords + " grupos"
+    });
+
+    searches.push(
+      { label: "Ofertas e promoções", query: "ofertas promoções achadinhos " + keywords },
+      { label: "Ofertas Mercado Livre", query: "Mercado Livre ofertas promoções " + keywords },
+      { label: "Achadinhos e cupons", query: "achadinhos cupons ofertas " + keywords }
+    );
+
+    return searches.filter((item, i, arr) =>
+      arr.findIndex(x => x.label === item.label) === i
+    ).slice(0, 4);
+  }
+
+
+  function openFacebookGroups(index) {
+    const product = currentProducts[index];
+    if (!product) return;
+
+    const searches = facebookGroupSearches(product);
+
+    document.getElementById("facebookGroupsProduct").textContent =
+      product.title || "Produto";
+
+    document.getElementById("facebookGroupsList").innerHTML =
+      searches.map(item =>
+        '<a class="group-link" href="https://www.facebook.com/search/groups/?q=' +
+        encodeURIComponent(item.query) +
+        '" target="_blank" rel="noopener noreferrer">' +
+        escapeHtml(item.label) +
+        '<small>🔎 Buscar no Facebook</small></a>'
+      ).join("");
+
+    document.getElementById("facebookGroupsModal").classList.add("show");
+  }
+
+
+  function closeFacebookGroups() {
+    document.getElementById("facebookGroupsModal").classList.remove("show");
+  }
+
+
+  async function copyFacebookSearches() {
+    const product = currentProducts.find((p, i) => {
+      const el = document.getElementById("facebookGroupsProduct");
+      return el && el.textContent === (p.title || "Produto");
+    });
+
+    if (!product) {
+      showToast("Abra os grupos de um produto primeiro.");
+      return;
+    }
+
+    const searches = facebookGroupSearches(product);
+    const text = searches.map((item, i) =>
+      (i + 1) + ". " + item.label + "\n" +
+      "https://www.facebook.com/search/groups/?q=" + encodeURIComponent(item.query)
+    ).join("\n\n");
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("📘 Pesquisas do Facebook copiadas!");
+    } catch (error) {
+      showToast("Não foi possível copiar.");
+    }
   }
 
 
