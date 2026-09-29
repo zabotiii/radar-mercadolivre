@@ -214,6 +214,8 @@ function buildCandidate({
   categoryName,
   position
 }) {
+  const realItemId = itemIdOf(item);
+
   const price = numeric(
     item.price ??
     item.sale_price ??
@@ -252,12 +254,10 @@ function buildCandidate({
 
   const product = {
     id:
-      item.id ||
-      null,
+      realItemId,
 
     item_id:
-      item.id ||
-      null,
+      realItemId,
 
     product_id:
       catalog.id ||
@@ -493,7 +493,7 @@ async function processCategory(
         .filter(
           (item) =>
             item &&
-            item.id
+            itemIdOf(item)
         )
         .sort(
           (a, b) =>
