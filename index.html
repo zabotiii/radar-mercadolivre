@@ -1306,6 +1306,7 @@
   let selectedDailyCategory = "todas";
 
   let affiliateProductIndex = null;
+  let facebookGroupsProductIndex = null;
 
 
   // =========================================================
@@ -2525,7 +2526,10 @@
           '<div class="saved-group-actions">' +
             '<button class="group-mini-button" onclick="window.open(\'' +
               String(group.url).replace(/'/g, "\\'") +
-              '\', \'_blank\')">ABRIR</button>' +
+              '\', \'_blank\')">ABRIR GRUPO</button>' +
+            '<button class="group-mini-button" style="margin-left:6px" onclick="openGroupAndCopyPost(\'' +
+              String(group.url).replace(/'/g, "\\'") +
+              '\')">📋 COPIAR + ABRIR</button>' +
           '</div>' +
         '</div>'
       ).join("");
@@ -2544,6 +2548,8 @@
     const product = currentProducts[index];
     if (!product) return;
 
+    facebookGroupsProductIndex = index;
+
     document.getElementById("facebookGroupsProduct").textContent =
       product.title || "Produto";
 
@@ -2556,6 +2562,42 @@
 
   function closeFacebookGroups() {
     document.getElementById("facebookGroupsModal").classList.remove("show");
+  }
+
+  async function openGroupAndCopyPost(groupUrl) {
+    const product = currentProducts[facebookGroupsProductIndex];
+
+    if (!product) {
+      showToast("Abra os grupos de um produto primeiro.");
+      return;
+    }
+
+    const affiliateLink = getAffiliateLink(product);
+
+    if (!affiliateLink) {
+      openAffiliateModal(facebookGroupsProductIndex);
+      showToast("🔗 Salve primeiro o link de afiliado deste produto.");
+      return;
+    }
+
+    // Abre imediatamente para evitar bloqueio de pop-up pelo navegador.
+    const groupWindow = window.open(groupUrl, "_blank");
+
+    try {
+      await navigator.clipboard.writeText(generateFacebookPost(product));
+
+      if (groupWindow) {
+        showToast("📋 Post copiado! O grupo foi aberto.");
+      } else {
+        showToast("📋 Post copiado! O navegador bloqueou a abertura do grupo.");
+      }
+    } catch (error) {
+      if (groupWindow) {
+        showToast("📘 Grupo aberto, mas não foi possível copiar o post.");
+      } else {
+        showToast("⚠️ O navegador bloqueou a abertura do grupo.");
+      }
+    }
   }
 
 
