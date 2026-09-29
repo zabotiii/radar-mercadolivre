@@ -1,17 +1,11 @@
 const https = require("https");
 
-const SEARCH_HOSTS = [
-  "https://www.google.com/search?q=",
-  "https://html.duckduckgo.com/html/?q=",
-  "https://www.bing.com/search?format=rss&q="
-];
-
 function cleanQuery(q) {
   return String(q || "")
     .replace(/[^\p{L}\p{N}\s-]/gu, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 180);
+    .slice(0, 160);
 }
 
 function request(url) {
@@ -19,21 +13,22 @@ function request(url) {
     const req = https.get(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153 Safari/537.36",
-        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8"
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8"
       }
-    }, res => {
-      let data = "";
-      res.setEncoding("utf8");
-      res.on("data", chunk => data += chunk);
-      res.on("end", () => resolve({ status: res.statusCode, body: data }));
+    }, response => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", chunk => body += chunk);
+      response.on("end", () => resolve({ status: response.statusCode || 0, body }));
     });
+
     req.on("error", reject);
-    req.setTimeout(8000, () => req.destroy(new Error("timeout")));
+    req.setTimeout(7000, () => req.destroy(new Error("timeout")));
   });
 }
 
-function decodeHtml(s) {
-  return s
+function decodeHtml(value) {
+  return String(value || "")
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
@@ -42,43 +37,109 @@ function decodeHtml(s) {
     .replace(/&gt;/g, ">");
 }
 
-function parseSearchResults(body) {
-  const results = [];
+function normalizeFacebookUrl(url) {
+  let value = decodeHtml(url).trim();
 
-  // Bing RSS costuma entregar o link final diretamente e é mais estável
-  // que depender da estrutura HTML da página de resultados.
-  const rssRe = /<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>(https?:\/\/[^<]+)<\/link>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<\/item>/gi;
+  try {
+    value = decodeURIComponent(value);
+  } catch (_) {}
+
+  value = value.replace(/\\/g, "/");
+
+  const match = value.match(/https?:\/\/(?:www\.)?facebook\.com\/groups\/[^\s"'<>?&#)]+/i);
+  if (!match) return null;
+
+  return match[0]
+    .replace(/[),.;]+$/, "")
+    .replace(/\/$/, "");
+}
+
+function addResult(results, seen, url, name, snippet) {
+  const normalized = normalizeFacebookUrl(url);
+  if (!normalized) return;
+
+  const key = normalized.toLowerCase();
+  if (seen.has(key)) return;
+
+  seen.add(key);
+  results.push({
+    name: decodeHtml(name || "Grupo Facebook")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim() || "Grupo Facebook",
+    url: normalized,
+    snippet: decodeHtml(snippet || "Grupo relacionado ao produto encontrado na pesquisa.")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  });
+}
+
+function parseBingRss(body) {
+  const results = [];
+  const seen = new Set();
+  const re = /<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>([\s\S]*?)<\/link>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<\/item>/gi;
   let m;
 
-  while ((m = rssRe.exec(body)) && results.length < 10) {
-    const url = decodeHtml(m[2]).trim();
-    const title = decodeHtml(m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
-    const snippet = decodeHtml(m[3].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
-
-    if (/^https?:\/\/(www\.)?facebook\.com\/groups\//i.test(url)) {
-      results.push({ name: title, url, snippet });
-    }
-  }
-
-  if (results.length) return results;
-
-  // Fallback para HTML do Bing, aceitando pequenas mudanças de estrutura.
-  const linkRe = /<a[^>]+href="(https?:\/\/[^"]*facebook\.com\/groups\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
-
-  while ((m = linkRe.exec(body)) && results.length < 10) {
-    const url = decodeHtml(m[1]).replace(/&amp;/g, "&");
-    const title = decodeHtml(m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
-
-    if (!results.some(x => x.url === url)) {
-      results.push({
-        name: title || "Grupo Facebook",
-        url,
-        snippet: "Grupo público encontrado na busca"
-      });
-    }
+  while ((m = re.exec(body)) && results.length < 10) {
+    addResult(results, seen, m[2], m[1], m[3]);
   }
 
   return results;
+}
+
+function parseHtmlLinks(body) {
+  const results = [];
+  const seen = new Set();
+  const decoded = decodeHtml(body);
+
+  const re = /https?:\/\/(?:www\.)?facebook\.com\/groups\/[^\s"'<>?&#)]+/gi;
+  let m;
+
+  while ((m = re.exec(decoded)) && results.length < 10) {
+    addResult(results, seen, m[0], "Grupo Facebook", "Grupo relacionado ao produto encontrado na pesquisa.");
+  }
+
+  return results;
+}
+
+function parseGoogle(body) {
+  const results = [];
+  const seen = new Set();
+  const re = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m;
+
+  while ((m = re.exec(body)) && results.length < 10) {
+    if (!/facebook\.com\/groups\//i.test(m[1])) continue;
+    addResult(results, seen, m[1], m[2], "Grupo relacionado ao produto encontrado na pesquisa.");
+  }
+
+  if (!results.length) return parseHtmlLinks(body);
+  return results;
+}
+
+async function searchProvider(provider, query) {
+  let url;
+
+  if (provider === "google") {
+    url = "https://www.google.com/search?q=" +
+      encodeURIComponent("site:facebook.com/groups " + query) +
+      "&num=10&filter=0";
+  } else if (provider === "duckduckgo") {
+    url = "https://html.duckduckgo.com/html/?q=" +
+      encodeURIComponent("site:facebook.com/groups " + query);
+  } else {
+    url = "https://www.bing.com/search?format=rss&q=" +
+      encodeURIComponent("site:facebook.com/groups " + query);
+  }
+
+  const response = await request(url);
+  if (response.status !== 200) return [];
+
+  if (provider === "google") return parseGoogle(response.body);
+  if (provider === "bing") return parseBingRss(response.body);
+
+  return parseHtmlLinks(response.body);
 }
 
 module.exports = async (req, res) => {
@@ -92,33 +153,48 @@ module.exports = async (req, res) => {
     const queries = [
       q + " ofertas promoções",
       q + " achadinhos",
-      q + " grupo facebook",
-      q + " promoções facebook"
+      q + " promoções",
+      q + " grupo"
     ];
 
-    const all = [];
+    const providers = ["google", "duckduckgo", "bing"];
+    const results = [];
+    const seen = new Set();
 
-    for (const term of queries) {
-      const search = "site:facebook.com/groups " + term;
-
-      for (const host of SEARCH_HOSTS) {
+    for (const query of queries) {
+      for (const provider of providers) {
         try {
-          const url = host + encodeURIComponent(search) + "&num=10&count=10";
-          const response = await request(url);
-          if (response.status !== 200) continue;
+          const found = await searchProvider(provider, query);
 
-          let found = [];
-          if (host.includes("google.com")) {
-            found = parseGoogle(response.body);
-          } else {
-            found = parseSearchResults(response.body);
-            if (!found.length) found = extractFacebookGroups(response.body);
+          for (const item of found) {
+            addResult(results, seen, item.url, item.name, item.snippet);
+            if (results.length >= 10) break;
           }
 
-          all.push(...found);
-          if (found.length >= 5) break;
-        } catch (e) {
-          console.error("search provider error", host, e.message);
+          if (results.length >= 10) break;
+        } catch (error) {
+          console.error("Facebook group search error:", provider, error.message);
         }
       }
+
+      if (results.length >= 10) break;
     }
+
+    return res.status(200).json({
+      query: q,
+      results: results.slice(0, 10),
+      fallbackSearch:
+        "https://www.facebook.com/search/groups/?q=" + encodeURIComponent(q)
+    });
+  } catch (error) {
+    console.error("facebook_groups:", error);
+    return res.status(200).json({
+      query: cleanQuery(req.query && req.query.q),
+      results: [],
+      fallbackSearch:
+        "https://www.facebook.com/search/groups/?q=" +
+        encodeURIComponent(cleanQuery(req.query && req.query.q)),
+      warning: "A pesquisa externa não respondeu. Use a busca do Facebook."
+    });
+  }
+};
