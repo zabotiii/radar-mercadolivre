@@ -22,7 +22,7 @@ async function serperSearch(query) {
 
   const data = await response.json();
   return (data.organic || [])
-    .filter(item => /facebook\\.com\\/groups\\//i.test(item.link || ""))
+    .filter(item => /facebook\.com\/groups\//i.test(item.link || ""))
     .map(item => ({
       name: item.title || "Grupo Facebook",
       url: item.link,
@@ -190,27 +190,48 @@ module.exports = async (req, res) => {
     const results = [];
     const seen = new Set();
 
-    // Primeiro usa uma SERP profissional quando a chave estiver configurada.
+    // Quando a chave da Serper existe, usamos somente a busca profissional.
+    // Isso evita estourar o tempo limite do Vercel fazendo várias buscas externas.
     if (process.env.SERPER_API_KEY) {
-      for (const query of queries) {
-        try {
-          const found = await serperSearch(query);
+      const serperQueries = [
+        q + " ofertas promoções",
+        q + " achadinhos grupo"
+      ];
+
+      try {
+        const batches = await Promise.all(
+          serperQueries.map(query => serperSearch(query))
+        );
+
+        for (const found of batches) {
           for (const item of found) {
             addResult(results, seen, item.url, item.name, item.snippet);
             if (results.length >= 10) break;
           }
-        } catch (error) {
-          console.error("Serper search error:", error.message);
+          if (results.length >= 10) break;
         }
-        if (results.length >= 10) break;
+      } catch (error) {
+        console.error("Serper search error:", error.message);
       }
+
+      return res.status(200).json({
+        query: q,
+        results: results.slice(0, 10),
+        fallbackSearch:
+          "https://www.facebook.com/search/groups/?q=" + encodeURIComponent(q),
+        source: "serper"
+      });
     }
 
-    // Sem chave ou se a SERP profissional não retornar grupos, usa os fallbacks gratuitos.
-    const providers = ["google", "duckduckgo", "bing"];
+    // Fallback gratuito somente quando não existe SERPER_API_KEY.
+    // Limitamos as tentativas para não ultrapassar o tempo do Vercel.
+    const fallbackQueries = [
+      q + " ofertas promoções",
+      q + " achadinhos"
+    ];
 
-    for (const query of queries) {
-      for (const provider of providers) {
+    for (const query of fallbackQueries) {
+      for (const provider of ["google", "bing"]) {
         try {
           const found = await searchProvider(provider, query);
 
