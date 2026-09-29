@@ -608,22 +608,31 @@ module.exports = async function handler(
     /*
       Elimina duplicados.
     */
-    const unique = [];
-    const seen = new Set();
+    const byProduct = new Map();
 
-    for (
-      const product
-      of allProducts
-    ) {
-      const key =
-        product.item_id ||
-        product.product_id;
+    for (const product of allProducts) {
+      const key = product.product_id || product.item_id;
+      const current = byProduct.get(key);
 
-      if (seen.has(key)) continue;
+      if (!current) {
+        byProduct.set(key, product);
+        continue;
+      }
 
-      seen.add(key);
-      unique.push(product);
+      const currentDiscount = current.discount ?? -1;
+      const newDiscount = product.discount ?? -1;
+      const currentPrice = current.price ?? Number.MAX_SAFE_INTEGER;
+      const newPrice = product.price ?? Number.MAX_SAFE_INTEGER;
+
+      if (
+        newDiscount > currentDiscount ||
+        (newDiscount === currentDiscount && newPrice < currentPrice)
+      ) {
+        byProduct.set(key, product);
+      }
     }
+
+    const unique = [...byProduct.values()];
 
     /*
       Promoções reais primeiro.
