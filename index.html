@@ -315,6 +315,24 @@
       font-size: 23px;
     }
 
+    .batch-post-button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      background: #222;
+      color: #ffe600;
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .results-tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
     .results-count {
       color: #666;
       font-size: 14px;
@@ -918,8 +936,19 @@
         🔥 Melhores oportunidades
       </h2>
 
-      <div id="resultsCount" class="results-count">
-        Nenhuma busca realizada
+      <div class="results-tools">
+        <div id="resultsCount" class="results-count">
+          Nenhuma busca realizada
+        </div>
+
+        <button
+          id="batchPostButton"
+          class="batch-post-button"
+          onclick="openBatchPosts()"
+          style="display:none"
+        >
+          📱 GERAR POSTS DAS OFERTAS
+        </button>
       </div>
 
     </div>
@@ -1005,6 +1034,40 @@
       </button>
     </div>
 
+  </div>
+</div>
+
+<div
+  id="batchPostModal"
+  class="modal-backdrop"
+  onclick="if(event.target===this) closeBatchPosts()"
+>
+  <div class="affiliate-modal">
+    <h3>📱 Posts prontos das ofertas</h3>
+    <div id="batchPostSummary" class="affiliate-modal-product"></div>
+
+    <div class="affiliate-step">
+      <strong>1️⃣ Produtos com link afiliado</strong>
+      <div id="batchPostCount" style="margin-top:8px;color:#666"></div>
+    </div>
+
+    <div class="affiliate-step" style="margin-top:15px">
+      <strong>2️⃣ Posts gerados</strong>
+      <textarea
+        id="batchPostText"
+        style="width:100%;min-height:300px;margin-top:10px;padding:12px;border:1px solid #ddd;border-radius:10px;font-family:inherit;line-height:1.45"
+        readonly
+      ></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="modal-open-generator" onclick="copyBatchPosts()">
+        📋 COPIAR TODOS OS POSTS
+      </button>
+      <button class="modal-close" onclick="closeBatchPosts()">
+        FECHAR
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1724,6 +1787,16 @@
 
     grid.innerHTML = "";
 
+    const batchButton =
+      document.getElementById("batchPostButton");
+
+    if (batchButton) {
+      batchButton.style.display =
+        products.some(product => getAffiliateLink(product))
+          ? "inline-block"
+          : "none";
+    }
+
 
     products.forEach(
       (product, index) => {
@@ -2121,6 +2194,63 @@
       showToast("Não foi possível copiar.");
     }
 
+  }
+
+
+  // POSTS EM LOTE
+  // =========================================================
+
+  function getProductsWithAffiliateLinks() {
+    return currentProducts.filter(product => getAffiliateLink(product));
+  }
+
+
+  function openBatchPosts() {
+    const products = getProductsWithAffiliateLinks();
+
+    if (!products.length) {
+      showToast("🔗 Salve pelo menos um link de afiliado para gerar os posts.");
+      return;
+    }
+
+    const posts = products.map((product, index) => {
+      return "━━━━━━━━━━━━━━━━━━━━\n" +
+        "POST " + (index + 1) + "\n" +
+        "━━━━━━━━━━━━━━━━━━━━\n" +
+        generateFacebookPost(product);
+    }).join("\n\n");
+
+    document.getElementById("batchPostSummary").textContent =
+      "Pronto para publicar: " + products.length + " oferta(s).";
+
+    document.getElementById("batchPostCount").textContent =
+      "O Radar encontrou " + products.length +
+      " produto(s) com link de afiliado salvo. Você pode copiar tudo de uma vez.";
+
+    document.getElementById("batchPostText").value = posts;
+    document.getElementById("batchPostModal").classList.add("show");
+  }
+
+
+  function closeBatchPosts() {
+    document.getElementById("batchPostModal").classList.remove("show");
+  }
+
+
+  async function copyBatchPosts() {
+    const text = document.getElementById("batchPostText").value;
+
+    if (!text) {
+      showToast("Nenhum post disponível.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("📱 Todos os posts foram copiados!");
+    } catch (error) {
+      showToast("Não foi possível copiar os posts.");
+    }
   }
 
 
