@@ -114,11 +114,11 @@ function firstMatch(text, regexes) {
   promocionais sem depender de /items/{id}.
 */
 async function publicProductPage(productId) {
-  const url =
-    `https://www.mercadolivre.com.br/p/${encodeURIComponent(productId)}`;
+  const fallbackUrl =
+    \`https://www.mercadolivre.com.br/p/\${encodeURIComponent(productId)}\`;
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(fallbackUrl, {
       headers: {
         Accept: "text/html,application/xhtml+xml",
         "User-Agent":
@@ -131,47 +131,91 @@ async function publicProductPage(productId) {
       return {
         ok: false,
         status: response.status,
-        url
+        url: fallbackUrl
       };
     }
 
     const html = await response.text();
 
-    let title =
-      firstMatch(html, [
-        /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i,
-        /<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i,
-        /<title[^>]*>([^<]+)<\/title>/i
-      ]);
+    function attr(tag, name) {
+      const re = new RegExp(
+        name + String.raw\`\\s*=\\s*["']([^"']+)["']\`,
+        "i"
+      );
+      const m = tag.match(re);
+      return m ? decodeHtml(m[1]).trim() : null;
+    }
 
-    let image =
-      firstMatch(html, [
-        /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i,
-        /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i
-      ]);
+    let title = null;
+    let image = null;
 
-    let price = null;
-    let originalPrice = null;
+    const metaTags = [
+      ...html.matchAll(/<meta\\b[^>]*>/gi)
+    ];
+
+    for (const m of metaTags) {
+      const tag = m[0];
+      const property =
+        attr(tag, "property") ||
+        attr(tag, "name");
+
+      const content =
+        attr(tag, "content");
+
+      if (!content) continue;
+
+      const key =
+        String(property || "").toLowerCase();
+
+      if (
+        !title &&
+        (
+          key === "og:title" ||
+          key === "twitter:title"
+        )
+      ) {
+        title = content;
+      }
+
+      if (
+        !image &&
+        (
+          key === "og:image" ||
+          key === "twitter:image"
+        )
+      ) {
+        image = content;
+      }
+    }
+
+    if (!title) {
+      title = firstMatch(html, [
+        /<title[^>]*>([\\s\\S]*?)<\\/title>/i
+      ]);
+    }
 
     /*
-      Primeiro tenta JSON-LD / schema.org.
+      JSON-LD.
     */
     const jsonLdBlocks = [
       ...html.matchAll(
-        /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+        /<script[^>]+type=["']application\\/ld\\+json["'][^>]*>([\\s\\S]*?)<\\/script>/gi
       )
     ];
+
+    let jsonLdPrice = null;
 
     for (const block of jsonLdBlocks) {
       try {
         const parsed = JSON.parse(block[1]);
-
         const entries = Array.isArray(parsed)
           ? parsed
           : [parsed];
 
         for (const entry of entries) {
-          if (!entry || typeof entry !== "object") continue;
+          if (!entry || typeof entry !== "object") {
+            continue;
+          }
 
           if (!title && entry.name) {
             title = String(entry.name);
@@ -179,7 +223,6 @@ async function publicProductPage(productId) {
 
           if (
             !image &&
-            entry.image &&
             typeof entry.image === "string"
           ) {
             image = entry.image;
@@ -187,20 +230,28 @@ async function publicProductPage(productId) {
 
           const offers = entry.offers;
 
-          if (offers && typeof offers === "object") {
-            const offerList = Array.isArray(offers)
+          if (
+            offers &&
+            typeof offers === "object"
+          ) {
+            const list = Array.isArray(offers)
               ? offers
               : [offers];
 
-            for (const offer of offerList) {
-              if (!offer || typeof offer !== "object") continue;
+            for (const offer of list) {
+              if (!offer || typeof offer !== "object") {
+                continue;
+              }
 
-              if (price === null) {
-                price = toNumber(
-                  offer.price ??
-                  offer.lowPrice ??
-                  null
-                );
+              if (
+                jsonLdPrice === null &&
+                offer.price != null
+              ) {
+                const n = toNumber(offer.price);
+
+                if (n !== null && n > 0) {
+                  jsonLdPrice = n;
+                }
               }
             }
           }
@@ -209,38 +260,127 @@ async function publicProductPage(productId) {
     }
 
     /*
-      Tenta campos do estado inicial da página.
+      Meta de preço.
     */
-    if (price === null) {
-      price = toNumber(
-        firstMatch(html, [
-          /"price"\s*:\s*"?(\d+(?:\.\d+)?)"?/i,
-          /"current_price"\s*:\s*"?(\d+(?:\.\d+)?)"?/i,
-          /"amount"\s*:\s*"?(\d+(?:\.\d+)?)"?/i
-        ])
-      );
+    let price = null;
+
+    for (const m of metaTags) {
+      const tag = m[0];
+      const property =
+        attr(tag, "property") ||
+        attr(tag, "name");
+
+      const content =
+        attr(tag, "content");
+
+      const key =
+        String(property || "").toLowerCase();
+
+      if (
+        content &&
+        (
+          key === "product:price:amount" ||
+          key === "product:price"
+        )
+      ) {
+        const n = toNumber(content);
+
+        if (n !== null && n > 0) {
+          price = n;
+          break;
+        }
+      }
+    }
+
+    if (price === null && jsonLdPrice !== null) {
+      price = jsonLdPrice;
     }
 
     /*
-      Referências a preço original / lista.
+      Valores monetários visíveis no componente
+      oficial do site.
     */
-    originalPrice = toNumber(
+    const visibleAmounts = [];
+
+    const moneyRe =
+      /andes-money-amount__fraction[^>]*>\\s*([\\d.]+)\\s*<([\\s\\S]{0,220})/gi;
+
+    for (const m of html.matchAll(moneyRe)) {
+      const fraction = m[1];
+      const tail = m[2] || "";
+
+      let value = toNumber(fraction);
+
+      const centsMatch =
+        tail.match(
+          /andes-money-amount__cents[^>]*>\\s*(\\d{1,2})\\s*</i
+        );
+
+      if (
+        centsMatch &&
+        value !== null
+      ) {
+        const cents =
+          centsMatch[1].padStart(2, "0");
+
+        value =
+          Number(
+            value.toFixed(0) +
+            "." +
+            cents
+          );
+      }
+
+      if (
+        value !== null &&
+        value > 0 &&
+        value < 100000000
+      ) {
+        visibleAmounts.push(value);
+      }
+    }
+
+    /*
+      Evita duplicações consecutivas.
+    */
+    const uniqueAmounts =
+      [...new Set(visibleAmounts)];
+
+    if (price === null && uniqueAmounts.length) {
+      price = uniqueAmounts[0];
+    }
+
+    /*
+      Procura preço original / anterior.
+    */
+    let originalPrice = toNumber(
       firstMatch(html, [
-        /"original_price"\s*:\s*"?(\d+(?:\.\d+)?)"?/i,
-        /"originalPrice"\s*:\s*"?(\d+(?:\.\d+)?)"?/i,
-        /"regular_amount"\s*:\s*"?(\d+(?:\.\d+)?)"?/i,
-        /"regularAmount"\s*:\s*"?(\d+(?:\.\d+)?)"?/i,
-        /"list_price"\s*:\s*"?(\d+(?:\.\d+)?)"?/i
+        /"original_price"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+        /"originalPrice"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+        /"regular_amount"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+        /"regularAmount"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+        /"list_price"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i
       ])
     );
 
-    /*
-      Algumas páginas exibem explicitamente % OFF.
-    */
+    if (
+      originalPrice === null &&
+      price !== null
+    ) {
+      const bigger =
+        uniqueAmounts.find(
+          (n) => n > price
+        );
+
+      if (bigger !== undefined) {
+        originalPrice = bigger;
+      }
+    }
+
     let discount = toNumber(
       firstMatch(html, [
-        /"(?:discount|discount_percentage|discountPercentage)"\s*:\s*"?([0-9]+)"?/i,
-        /([0-9]{1,2})\s*%\s*OFF/i
+        /"(?:discount|discount_percentage|discountPercentage)"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+        /(?:^|\\s)(\\d{1,2})\\s*%\\s*OFF(?:\\s|<|$)/i
       ])
     );
 
@@ -253,12 +393,20 @@ async function publicProductPage(productId) {
       discount = Math.round(
         ((originalPrice - price) / originalPrice) * 100
       );
+    } else if (
+      discount !== null &&
+      (
+        discount <= 0 ||
+        discount > 95
+      )
+    ) {
+      discount = null;
     }
 
     return {
       ok: true,
       status: response.status,
-      url: response.url || url,
+      url: response.url || fallbackUrl,
       title,
       image,
       price,
@@ -269,12 +417,11 @@ async function publicProductPage(productId) {
     return {
       ok: false,
       status: 0,
-      url,
+      url: fallbackUrl,
       error: error.message || String(error)
     };
   }
 }
-
 async function getProduct(productId, token) {
   return mlFetch(
     `/products/${encodeURIComponent(productId)}`,
@@ -411,8 +558,8 @@ async function processCategory(categoryName, categoryId, token) {
           : null;
 
       const title =
-        (publicData.ok && publicData.title) ||
         (detail && detail.name) ||
+        (publicData.ok && publicData.title) ||
         `Produto Mercado Livre ${candidate.id}`;
 
       const image =
@@ -420,8 +567,8 @@ async function processCategory(categoryName, categoryId, token) {
         imageFromProduct(detail);
 
       const permalink =
-        (publicData.ok && publicData.url) ||
         (detail && detail.permalink) ||
+        (publicData.ok && publicData.url) ||
         `https://www.mercadolivre.com.br/p/${candidate.id}`;
 
       /*
