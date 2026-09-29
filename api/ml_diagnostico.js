@@ -11,6 +11,7 @@ function json(res, status, data) {
 
 async function mlFetch(path, token) {
   try {
+
     const response = await fetch(
       "https://api.mercadolibre.com" + path,
       {
@@ -34,11 +35,14 @@ async function mlFetch(path, token) {
     };
 
   } catch (error) {
+
     return {
       ok: false,
       status: 0,
       data: null,
-      error: error.message || String(error)
+      error:
+        error.message ||
+        String(error)
     };
   }
 }
@@ -54,40 +58,52 @@ module.exports = async function handler(req, res) {
       !sessao ||
       !sessao.access_token
     ) {
-      return json(res, 401, {
-        erro:
-          "Mercado Livre não conectado."
-      });
+
+      return json(
+        res,
+        401,
+        {
+          erro:
+            "Mercado Livre não conectado."
+        }
+      );
     }
 
     const token =
       sessao.access_token;
 
     const categorias = [
+
       {
         nome: "Celulares",
         id: "MLB1051"
       },
+
       {
         nome: "Eletrônicos",
         id: "MLB1000"
       },
+
       {
         nome: "Casa",
         id: "MLB1574"
       },
+
       {
         nome: "Informática",
         id: "MLB1648"
       },
+
       {
         nome: "Games",
         id: "MLB1144"
       },
+
       {
         nome: "Moda",
         id: "MLB1430"
       }
+
     ];
 
     const resultados = [];
@@ -97,15 +113,19 @@ module.exports = async function handler(req, res) {
       of categorias
     ) {
 
-      const highlights =
+      /*
+        Busca ranking
+      */
+
+      const ranking =
         await mlFetch(
           `/highlights/MLB/category/${categoria.id}`,
           token
         );
 
       if (
-        !highlights.ok ||
-        !highlights.data
+        !ranking.ok ||
+        !ranking.data
       ) {
 
         resultados.push({
@@ -113,9 +133,9 @@ module.exports = async function handler(req, res) {
             categoria.nome,
 
           erro:
-            highlights.data ||
-            highlights.error ||
-            "Erro highlights"
+            ranking.data ||
+            ranking.error ||
+            "Erro no highlights"
         });
 
         continue;
@@ -123,204 +143,311 @@ module.exports = async function handler(req, res) {
 
       const content =
         Array.isArray(
-          highlights.data.content
+          ranking.data.content
         )
-          ? highlights.data.content
+          ? ranking.data.content
           : [];
 
-      const produtos =
+      /*
+        IMPORTANTE:
+        Agora pegamos somente ITEM.
+
+        ITEM = anúncio real.
+      */
+
+      const itens =
         content.filter(
           x =>
             x &&
-            x.type === "PRODUCT" &&
+            x.type === "ITEM" &&
             x.id
         );
 
-      const encontrados = [];
+      const produtos = [];
 
       /*
-        Testa no máximo 10 PRODUCTs
-        por categoria.
+        Testa todos os ITEMs encontrados.
       */
 
       for (
         const destaque
-        of produtos.slice(0, 10)
+        of itens
       ) {
 
-        const product =
+        /*
+          Dados do anúncio
+        */
+
+        const item =
           await mlFetch(
-            `/products/${encodeURIComponent(destaque.id)}`,
+            `/items/${encodeURIComponent(destaque.id)}`,
             token
           );
 
-        if (
-          !product.ok ||
-          !product.data
-        ) {
-          continue;
-        }
-
-        const dados =
-          product.data;
-
         /*
-          Primeiro testa o próprio produto.
+          Preços
         */
 
-        if (
-          dados.buy_box_winner &&
-          dados.buy_box_winner.item_id
-        ) {
-
-          encontrados.push({
-
-            origem:
-              "PRODUCT_DIRETO",
-
-            product_id:
-              dados.id,
-
-            position:
-              destaque.position,
-
-            nome:
-              dados.name,
-
-            item_id:
-              dados.buy_box_winner.item_id,
-
-            seller_id:
-              dados.buy_box_winner.seller_id,
-
-            preco:
-              dados.buy_box_winner.price,
-
-            original_price:
-              dados.buy_box_winner.original_price,
-
-            shipping:
-              dados.buy_box_winner.shipping || null
-
-          });
-
-          continue;
-        }
-
-        /*
-          Agora testa os filhos.
-        */
-
-        const children =
-          Array.isArray(
-            dados.children_ids
-          )
-            ? dados.children_ids
-            : [];
-
-        if (
-          children.length === 0
-        ) {
-          encontrados.push({
-
-            origem:
-              "SEM_FILHOS",
-
-            product_id:
-              dados.id,
-
-            position:
-              destaque.position,
-
-            nome:
-              dados.name,
-
-            quantidade_filhos:
-              0,
-
-            buy_box_winner:
-              null
-
-          });
-
-          continue;
-        }
-
-        /*
-          Limita a 10 filhos por produto.
-        */
-
-        const filhos =
-          children.slice(
-            0,
-            10
+        const prices =
+          await mlFetch(
+            `/items/${encodeURIComponent(destaque.id)}/prices`,
+            token
           );
 
-        for (
-          const childId
-          of filhos
+        /*
+          Sale price
+        */
+
+        const salePrice =
+          await mlFetch(
+            `/items/${encodeURIComponent(destaque.id)}/sale_price?context=channel_marketplace`,
+            token
+          );
+
+        /*
+          Analisa preços
+        */
+
+        let standard = null;
+        let promotion = null;
+
+        if (
+          prices.ok &&
+          prices.data &&
+          Array.isArray(
+            prices.data.prices
+          )
         ) {
 
-          const child =
-            await mlFetch(
-              `/products/${encodeURIComponent(childId)}`,
-              token
-            );
+          standard =
+            prices.data.prices.find(
+              p =>
+                p.type === "standard"
+            ) || null;
 
-          if (
-            !child.ok ||
-            !child.data
-          ) {
-            continue;
-          }
-
-          const childData =
-            child.data;
-
-          if (
-            childData.buy_box_winner &&
-            childData.buy_box_winner.item_id
-          ) {
-
-            encontrados.push({
-
-              origem:
-                "PRODUCT_FILHO",
-
-              product_id:
-                childData.id,
-
-              product_pai:
-                dados.id,
-
-              position:
-                destaque.position,
-
-              nome:
-                childData.name,
-
-              item_id:
-                childData.buy_box_winner.item_id,
-
-              seller_id:
-                childData.buy_box_winner.seller_id,
-
-              preco:
-                childData.buy_box_winner.price,
-
-              original_price:
-                childData.buy_box_winner.original_price,
-
-              shipping:
-                childData.buy_box_winner.shipping ||
-                null
-
-            });
-
-          }
-
+          promotion =
+            prices.data.prices.find(
+              p =>
+                p.type === "promotion"
+            ) || null;
         }
 
+        /*
+          Dados do sale_price
+        */
+
+        let venda = null;
+
+        if (
+          salePrice.ok &&
+          salePrice.data
+        ) {
+
+          venda = {
+            amount:
+              salePrice.data.amount ??
+              null,
+
+            regular_amount:
+              salePrice.data.regular_amount ??
+              null,
+
+            currency_id:
+              salePrice.data.currency_id ??
+              null,
+
+            metadata:
+              salePrice.data.metadata ??
+              null
+          };
+        }
+
+        /*
+          Decide se existe promoção.
+        */
+
+        let promocao = false;
+
+        let precoAtual = null;
+
+        let precoOriginal = null;
+
+        let desconto = 0;
+
+        /*
+          Primeiro usamos sale_price.
+        */
+
+        if (
+          venda &&
+          typeof venda.amount ===
+            "number"
+        ) {
+
+          precoAtual =
+            venda.amount;
+
+          if (
+            typeof venda.regular_amount ===
+              "number" &&
+            venda.regular_amount >
+              venda.amount
+          ) {
+
+            precoOriginal =
+              venda.regular_amount;
+
+            promocao = true;
+          }
+        }
+
+        /*
+          Se não encontrou,
+          tenta /prices.
+        */
+
+        if (
+          !promocao &&
+          promotion &&
+          typeof promotion.amount ===
+            "number" &&
+          typeof promotion.regular_amount ===
+            "number" &&
+          promotion.regular_amount >
+            promotion.amount
+        ) {
+
+          precoAtual =
+            promotion.amount;
+
+          precoOriginal =
+            promotion.regular_amount;
+
+          promocao = true;
+        }
+
+        /*
+          Calcula desconto.
+        */
+
+        if (
+          promocao &&
+          precoAtual !== null &&
+          precoOriginal !== null &&
+          precoOriginal > 0
+        ) {
+
+          desconto =
+            Math.round(
+              (
+                (
+                  precoOriginal -
+                  precoAtual
+                ) /
+                precoOriginal
+              ) * 100
+            );
+        }
+
+        /*
+          Monta resultado.
+        */
+
+        produtos.push({
+
+          position:
+            destaque.position,
+
+          item_id:
+            destaque.id,
+
+          tipo:
+            destaque.type,
+
+          titulo:
+            item.data &&
+            item.data.title
+              ? item.data.title
+              : null,
+
+          permalink:
+            item.data &&
+            item.data.permalink
+              ? item.data.permalink
+              : null,
+
+          thumbnail:
+            item.data &&
+            (
+              item.data.thumbnail ||
+              (
+                Array.isArray(
+                  item.data.pictures
+                ) &&
+                item.data.pictures[0]
+                  ? (
+                      item.data.pictures[0]
+                        .secure_url ||
+                      item.data.pictures[0]
+                        .url
+                    )
+                  : null
+              )
+            ),
+
+          promocao,
+
+          preco_atual:
+            precoAtual,
+
+          preco_original:
+            precoOriginal,
+
+          desconto,
+
+          standard:
+
+            standard
+              ? {
+                  amount:
+                    standard.amount,
+
+                  regular_amount:
+                    standard.regular_amount,
+
+                  currency_id:
+                    standard.currency_id
+                }
+              : null,
+
+          promotion:
+
+            promotion
+              ? {
+                  amount:
+                    promotion.amount,
+
+                  regular_amount:
+                    promotion.regular_amount,
+
+                  currency_id:
+                    promotion.currency_id
+                }
+              : null,
+
+          sale_price:
+            venda,
+
+          sale_price_status:
+            salePrice.status,
+
+          prices_status:
+            prices.status,
+
+          item_status:
+            item.status
+
+        });
       }
 
       resultados.push({
@@ -331,28 +458,26 @@ module.exports = async function handler(req, res) {
         categoria_id:
           categoria.id,
 
-        quantidade_products:
-          produtos.length,
+        quantidade_itens:
+          itens.length,
 
-        encontrados:
-          encontrados.length,
+        quantidade_promocoes:
+          produtos.filter(
+            p =>
+              p.promocao
+          ).length,
 
-        resultados:
-          encontrados
+        itens:
+          produtos
 
       });
-
     }
 
     /*
-      Junta todos os vencedores.
+      Junta todas as promoções
     */
 
-    const vencedores =
-      [];
-
-    const ids =
-      new Set();
+    const promocoes = [];
 
     for (
       const categoria
@@ -360,32 +485,38 @@ module.exports = async function handler(req, res) {
     ) {
 
       for (
-        const item
+        const produto
         of (
-          categoria.resultados ||
+          categoria.itens ||
           []
         )
       ) {
 
         if (
-          item.item_id &&
-          !ids.has(
-            item.item_id
-          )
+          produto.promocao
         ) {
 
-          ids.add(
-            item.item_id
-          );
+          promocoes.push({
 
-          vencedores.push(
-            item
-          );
+            categoria:
+              categoria.categoria,
+
+            ...produto
+
+          });
         }
-
       }
-
     }
+
+    /*
+      Ordena pelo maior desconto.
+    */
+
+    promocoes.sort(
+      (a, b) =>
+        (b.desconto || 0) -
+        (a.desconto || 0)
+    );
 
     return json(
       res,
@@ -393,14 +524,24 @@ module.exports = async function handler(req, res) {
       {
 
         diagnostico:
-          "TESTE PRODUCT FILHOS",
+          "TESTE DE PROMOÇÕES EM ITEMS",
 
-        quantidade_vencedores:
-          vencedores.length,
+        quantidade_itens:
+          resultados.reduce(
+            (total, categoria) =>
+              total +
+              (
+                categoria.quantidade_itens ||
+                0
+              ),
+            0
+          ),
 
-        vencedores:
+        quantidade_promocoes:
+          promocoes.length,
 
-          vencedores.slice(
+        promocoes:
+          promocoes.slice(
             0,
             50
           ),
@@ -410,11 +551,11 @@ module.exports = async function handler(req, res) {
 
         conclusao:
 
-          vencedores.length > 0
+          promocoes.length > 0
 
-            ? "ENCONTRAMOS ITENS ATRAVES DOS PRODUCTS OU FILHOS"
+            ? "ENCONTRAMOS PROMOÇÕES EM ITEMS"
 
-            : "NENHUM PRODUCT OU FILHO POSSUI BUY_BOX_WINNER"
+            : "NENHUM ITEM TESTADO POSSUI PREÇO PROMOCIONAL"
 
       }
     );
