@@ -113,9 +113,11 @@ function firstMatch(text, regexes) {
   montar título, imagem, preço e possíveis referências
   promocionais sem depender de /items/{id}.
 */
+
 async function publicProductPage(productId) {
   const fallbackUrl =
-    \`https://www.mercadolivre.com.br/p/\${encodeURIComponent(productId)}\`;
+    "https://www.mercadolivre.com.br/p/" +
+    encodeURIComponent(productId);
 
   try {
     const response = await fetch(fallbackUrl, {
@@ -139,11 +141,15 @@ async function publicProductPage(productId) {
 
     function attr(tag, name) {
       const re = new RegExp(
-        name + String.raw\`\\s*=\\s*["']([^"']+)["']\`,
+        name + "\\s*=\\s*[\\"']([^\\"']+)[\\"']",
         "i"
       );
+
       const m = tag.match(re);
-      return m ? decodeHtml(m[1]).trim() : null;
+
+      return m
+        ? decodeHtml(m[1]).trim()
+        : null;
     }
 
     let title = null;
@@ -155,6 +161,7 @@ async function publicProductPage(productId) {
 
     for (const m of metaTags) {
       const tag = m[0];
+
       const property =
         attr(tag, "property") ||
         attr(tag, "name");
@@ -208,38 +215,56 @@ async function publicProductPage(productId) {
     for (const block of jsonLdBlocks) {
       try {
         const parsed = JSON.parse(block[1]);
-        const entries = Array.isArray(parsed)
-          ? parsed
-          : [parsed];
+
+        const entries =
+          Array.isArray(parsed)
+            ? parsed
+            : [parsed];
 
         for (const entry of entries) {
-          if (!entry || typeof entry !== "object") {
+          if (
+            !entry ||
+            typeof entry !== "object"
+          ) {
             continue;
           }
 
-          if (!title && entry.name) {
-            title = String(entry.name);
+          if (
+            !title &&
+            entry.name
+          ) {
+            title =
+              String(entry.name);
           }
 
           if (
             !image &&
             typeof entry.image === "string"
           ) {
-            image = entry.image;
+            image =
+              entry.image;
           }
 
-          const offers = entry.offers;
+          const offers =
+            entry.offers;
 
           if (
             offers &&
             typeof offers === "object"
           ) {
-            const list = Array.isArray(offers)
-              ? offers
-              : [offers];
+            const list =
+              Array.isArray(offers)
+                ? offers
+                : [offers];
 
-            for (const offer of list) {
-              if (!offer || typeof offer !== "object") {
+            for (
+              const offer
+              of list
+            ) {
+              if (
+                !offer ||
+                typeof offer !== "object"
+              ) {
                 continue;
               }
 
@@ -247,10 +272,17 @@ async function publicProductPage(productId) {
                 jsonLdPrice === null &&
                 offer.price != null
               ) {
-                const n = toNumber(offer.price);
+                const n =
+                  toNumber(
+                    offer.price
+                  );
 
-                if (n !== null && n > 0) {
-                  jsonLdPrice = n;
+                if (
+                  n !== null &&
+                  n > 0
+                ) {
+                  jsonLdPrice =
+                    n;
                 }
               }
             }
@@ -266,6 +298,7 @@ async function publicProductPage(productId) {
 
     for (const m of metaTags) {
       const tag = m[0];
+
       const property =
         attr(tag, "property") ||
         attr(tag, "name");
@@ -283,37 +316,50 @@ async function publicProductPage(productId) {
           key === "product:price"
         )
       ) {
-        const n = toNumber(content);
+        const n =
+          toNumber(content);
 
-        if (n !== null && n > 0) {
+        if (
+          n !== null &&
+          n > 0
+        ) {
           price = n;
           break;
         }
       }
     }
 
-    if (price === null && jsonLdPrice !== null) {
+    if (
+      price === null &&
+      jsonLdPrice !== null
+    ) {
       price = jsonLdPrice;
     }
 
     /*
-      Valores monetários visíveis no componente
-      oficial do site.
+      Valores monetários visíveis.
     */
     const visibleAmounts = [];
 
     const moneyRe =
-      /andes-money-amount__fraction[^>]*>\\s*([\\d.]+)\\s*<([\\s\\S]{0,220})/gi;
+      /andes-money-amount__fraction[^>]*>\s*([\d.]+)\s*<([\s\S]{0,220})/gi;
 
-    for (const m of html.matchAll(moneyRe)) {
-      const fraction = m[1];
-      const tail = m[2] || "";
+    for (
+      const m
+      of html.matchAll(moneyRe)
+    ) {
+      const fraction =
+        m[1];
 
-      let value = toNumber(fraction);
+      const tail =
+        m[2] || "";
+
+      let value =
+        toNumber(fraction);
 
       const centsMatch =
         tail.match(
-          /andes-money-amount__cents[^>]*>\\s*(\\d{1,2})\\s*</i
+          /andes-money-amount__cents[^>]*>\s*(\d{1,2})\s*</i
         );
 
       if (
@@ -321,11 +367,14 @@ async function publicProductPage(productId) {
         value !== null
       ) {
         const cents =
-          centsMatch[1].padStart(2, "0");
+          centsMatch[1]
+            .padStart(2, "0");
 
         value =
           Number(
-            value.toFixed(0) +
+            String(
+              Math.trunc(value)
+            ) +
             "." +
             cents
           );
@@ -336,32 +385,38 @@ async function publicProductPage(productId) {
         value > 0 &&
         value < 100000000
       ) {
-        visibleAmounts.push(value);
+        visibleAmounts.push(
+          value
+        );
       }
     }
 
-    /*
-      Evita duplicações consecutivas.
-    */
     const uniqueAmounts =
-      [...new Set(visibleAmounts)];
+      [...new Set(
+        visibleAmounts
+      )];
 
-    if (price === null && uniqueAmounts.length) {
-      price = uniqueAmounts[0];
+    if (
+      price === null &&
+      uniqueAmounts.length
+    ) {
+      price =
+        uniqueAmounts[0];
     }
 
     /*
-      Procura preço original / anterior.
+      Preço original.
     */
-    let originalPrice = toNumber(
-      firstMatch(html, [
-        /"original_price"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
-        /"originalPrice"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
-        /"regular_amount"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
-        /"regularAmount"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
-        /"list_price"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i
-      ])
-    );
+    let originalPrice =
+      toNumber(
+        firstMatch(html, [
+          /"original_price"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+          /"originalPrice"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+          /"regular_amount"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+          /"regularAmount"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+          /"list_price"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i
+        ])
+      );
 
     if (
       originalPrice === null &&
@@ -372,17 +427,21 @@ async function publicProductPage(productId) {
           (n) => n > price
         );
 
-      if (bigger !== undefined) {
-        originalPrice = bigger;
+      if (
+        bigger !== undefined
+      ) {
+        originalPrice =
+          bigger;
       }
     }
 
-    let discount = toNumber(
-      firstMatch(html, [
-        /"(?:discount|discount_percentage|discountPercentage)"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
-        /(?:^|\\s)(\\d{1,2})\\s*%\\s*OFF(?:\\s|<|$)/i
-      ])
-    );
+    let discount =
+      toNumber(
+        firstMatch(html, [
+          /"(?:discount|discount_percentage|discountPercentage)"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+          /(?:^|\\s)(\\d{1,2})\\s*%\\s*OFF(?:\\s|<|$)/i
+        ])
+      );
 
     if (
       price !== null &&
@@ -390,9 +449,13 @@ async function publicProductPage(productId) {
       originalPrice > price &&
       originalPrice > 0
     ) {
-      discount = Math.round(
-        ((originalPrice - price) / originalPrice) * 100
-      );
+      discount =
+        Math.round(
+          (
+            (originalPrice - price) /
+            originalPrice
+          ) * 100
+        );
     } else if (
       discount !== null &&
       (
@@ -406,20 +469,27 @@ async function publicProductPage(productId) {
     return {
       ok: true,
       status: response.status,
-      url: response.url || fallbackUrl,
+      url:
+        response.url ||
+        fallbackUrl,
       title,
       image,
       price,
       originalPrice,
       discount
     };
+
   } catch (error) {
+
     return {
       ok: false,
       status: 0,
       url: fallbackUrl,
-      error: error.message || String(error)
+      error:
+        error.message ||
+        String(error)
     };
+
   }
 }
 async function getProduct(productId, token) {
