@@ -114,6 +114,7 @@ function firstMatch(text, regexes) {
   promocionais sem depender de /items/{id}.
 */
 
+
 async function publicProductPage(productId) {
   const fallbackUrl =
     "https://www.mercadolivre.com.br/p/" +
@@ -141,7 +142,7 @@ async function publicProductPage(productId) {
 
     function attr(tag, name) {
       const re = new RegExp(
-        name + "\\s*=\\s*[\\"']([^\\"']+)[\\"']",
+        name + "\\s*=\\s*[\"']([^\"']+)[\"']",
         "i"
       );
 
@@ -156,7 +157,7 @@ async function publicProductPage(productId) {
     let image = null;
 
     const metaTags = [
-      ...html.matchAll(/<meta\\b[^>]*>/gi)
+      ...html.matchAll(/<meta\b[^>]*>/gi)
     ];
 
     for (const m of metaTags) {
@@ -197,7 +198,7 @@ async function publicProductPage(productId) {
 
     if (!title) {
       title = firstMatch(html, [
-        /<title[^>]*>([\\s\\S]*?)<\\/title>/i
+        /<title[^>]*>([\s\S]*?)<\/title>/i
       ]);
     }
 
@@ -206,7 +207,7 @@ async function publicProductPage(productId) {
     */
     const jsonLdBlocks = [
       ...html.matchAll(
-        /<script[^>]+type=["']application\\/ld\\+json["'][^>]*>([\\s\\S]*?)<\\/script>/gi
+        /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
       )
     ];
 
@@ -214,7 +215,8 @@ async function publicProductPage(productId) {
 
     for (const block of jsonLdBlocks) {
       try {
-        const parsed = JSON.parse(block[1]);
+        const parsed =
+          JSON.parse(block[1]);
 
         const entries =
           Array.isArray(parsed)
@@ -333,7 +335,8 @@ async function publicProductPage(productId) {
       price === null &&
       jsonLdPrice !== null
     ) {
-      price = jsonLdPrice;
+      price =
+        jsonLdPrice;
     }
 
     /*
@@ -410,11 +413,11 @@ async function publicProductPage(productId) {
     let originalPrice =
       toNumber(
         firstMatch(html, [
-          /"original_price"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
-          /"originalPrice"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
-          /"regular_amount"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
-          /"regularAmount"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
-          /"list_price"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i
+          /"original_price"\s*:\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+          /"originalPrice"\s*:\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+          /"regular_amount"\s*:\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+          /"regularAmount"\s*:\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+          /"list_price"\s*:\s*"?(\\d+(?:\\.\\d+)?)"?/i
         ])
       );
 
@@ -438,8 +441,8 @@ async function publicProductPage(productId) {
     let discount =
       toNumber(
         firstMatch(html, [
-          /"(?:discount|discount_percentage|discountPercentage)"\\s*:\\s*"?(\\d+(?:\\.\\d+)?)"?/i,
-          /(?:^|\\s)(\\d{1,2})\\s*%\\s*OFF(?:\\s|<|$)/i
+          /"(?:discount|discount_percentage|discountPercentage)"\s*:\s*"?(\\d+(?:\\.\\d+)?)"?/i,
+          /(?:^|\s)(\d{1,2})\s*%\\s*OFF(?:\s|<|$)/i
         ])
       );
 
