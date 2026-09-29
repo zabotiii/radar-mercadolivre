@@ -1114,8 +1114,12 @@
       </h2>
 
       <div class="results-tools">
-        <div id="resultsCount" class="results-count">
-          Nenhuma busca realizada
+        <div>
+          <div id="resultsCount" class="results-count">
+            Nenhuma busca realizada
+          </div>
+          <div id="dailyRefreshStatus" class="results-count" style="font-size:12px;margin-top:4px;opacity:.75;">
+          </div>
         </div>
 
         <button
@@ -1346,6 +1350,9 @@
   let affiliateLinksByProduct = {};
 
   let selectedDailyCategory = "todas";
+  let dailyViewActive = false;
+  let dailyRefreshTimer = null;
+  const DAILY_REFRESH_INTERVAL = 30 * 60 * 1000;
 
   let affiliateProductIndex = null;
   let facebookGroupsProductIndex = null;
@@ -1694,6 +1701,7 @@
   // =========================================================
 
   async function searchProducts() {
+    dailyViewActive = false;
     const input = document.getElementById("searchInput");
     const query = input.value.trim();
     const errorBox = document.getElementById("error");
@@ -1834,6 +1842,8 @@
       selectedDailyCategory
   ) {
 
+    dailyViewActive = true;
+
     selectedDailyCategory =
       category;
 
@@ -1928,6 +1938,19 @@
         currentProducts.length +
         " oportunidades encontradas";
 
+      const refreshStatus =
+        document.getElementById("dailyRefreshStatus");
+
+      if (refreshStatus) {
+        const now = new Date();
+        const time = now.toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+        refreshStatus.textContent =
+          "🔄 Atualizado às " + time + " • atualização automática a cada 30 min";
+      }
+
 
       if (
         !currentProducts.length
@@ -1979,6 +2002,25 @@
     }
 
   }
+
+
+  // =========================================================
+  // ATUALIZAÇÃO AUTOMÁTICA DAS MELHORES OPORTUNIDADES
+  // =========================================================
+
+  function startDailyAutoRefresh() {
+    if (dailyRefreshTimer) {
+      clearInterval(dailyRefreshTimer);
+    }
+
+    dailyRefreshTimer = setInterval(() => {
+      if (!dailyViewActive || document.hidden) return;
+
+      loadDailyPromotions(selectedDailyCategory);
+    }, DAILY_REFRESH_INTERVAL);
+  }
+
+  startDailyAutoRefresh();
 
 
   // =========================================================
