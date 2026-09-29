@@ -143,6 +143,50 @@
       border-color: #ffe600;
     }
 
+    .store-filters {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #f7f8fa;
+      border: 1px solid #e3e5e8;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .store-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 9px;
+      background: white;
+      border: 1px solid #ddd;
+      font-weight: 800;
+    }
+
+    .store-badge {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      padding: 6px 9px;
+      border-radius: 9px;
+      background: rgba(255,255,255,.94);
+      color: #222;
+      font-size: 11px;
+      font-weight: 900;
+      box-shadow: 0 2px 8px rgba(0,0,0,.12);
+    }
+
+    .amazon-note {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #666;
+    }
+
     .search-button {
       border: 0;
       border-radius: 12px;
@@ -917,8 +961,8 @@
     <h1>🔥 Caçador de Promoções</h1>
 
     <p>
-      Encontre oportunidades no Mercado Livre,
-      analise os produtos e prepare seu conteúdo
+      Encontre oportunidades em grandes marketplaces,
+      compare ofertas e prepare seu conteúdo
       para divulgação como afiliado.
     </p>
 
@@ -945,6 +989,19 @@
         🔎 BUSCAR OFERTAS
       </button>
 
+    </div>
+
+    <div class="store-filters">
+      <span>🛒 Fontes:</span>
+      <label class="store-check">
+        <input type="checkbox" id="storeMercadoLivre" checked onchange="toggleStore('mercado_livre', this.checked)">
+        Mercado Livre
+      </label>
+      <label class="store-check">
+        <input type="checkbox" id="storeAmazon" checked onchange="toggleStore('amazon', this.checked)">
+        Amazon
+      </label>
+      <span class="amazon-note">Amazon usa a API oficial de afiliados. Para ativá-la no Radar, precisamos das credenciais da sua conta Amazon Associados.</span>
     </div>
 
 
@@ -1321,6 +1378,7 @@
   let currentProducts = [];
 
   let affiliateLinksByProduct = {};
+  let selectedStores = { mercado_livre: true, amazon: true };
 
   let selectedDailyCategory = "todas";
 
@@ -1447,14 +1505,27 @@
 
 
   function getAffiliateLink(product) {
+    if (!product) return "";
+    if (product.affiliate_link) return product.affiliate_link;
     const key = getProductKey(product);
     return key ? (affiliateLinksByProduct[key] || "") : "";
   }
 
 
-  function openAffiliateModal(index) {
+  async function openAffiliateModal(index) {
     const product = currentProducts[index];
     if (!product) return;
+
+    if (product.store === "amazon" && product.affiliate_link) {
+      try {
+        await navigator.clipboard.writeText(product.affiliate_link);
+        showToast("🟠 Link de afiliado Amazon copiado!");
+      } catch (error) {
+        window.open(product.affiliate_link, "_blank");
+        showToast("🟠 Link Amazon aberto.");
+      }
+      return;
+    }
 
     affiliateProductIndex = index;
 
@@ -1532,9 +1603,18 @@
 
 
   function affiliateButtonLabel(product) {
+    if (product && product.store === "amazon") {
+      return getAffiliateLink(product)
+        ? "🟠 LINK AMAZON PRONTO"
+        : "🟠 LINK AMAZON";
+    }
     return getAffiliateLink(product)
       ? "🔗 LINK AFILIADO SALVO"
       : "🔗 GERAR LINK AFILIADO";
+  }
+
+  function toggleStore(store, checked) {
+    selectedStores[store] = !!checked;
   }
 
 
@@ -1669,157 +1749,106 @@
 
   async function searchProducts() {
 
-    const input =
-      document.getElementById(
-        "searchInput"
-      );
+    const input = document.getElementById("searchInput");
+    const query = input.value.trim();
 
-    const query =
-      input.value.trim();
+    const errorBox = document.getElementById("error");
+    const loading = document.getElementById("loading");
+    const dailyLoading = document.getElementById("dailyLoading");
+    const grid = document.getElementById("grid");
+    const empty = document.getElementById("empty");
+    const resultsCount = document.getElementById("resultsCount");
 
-    const errorBox =
-      document.getElementById(
-        "error"
-      );
-
-    const loading =
-      document.getElementById(
-        "loading"
-      );
-
-    const dailyLoading =
-      document.getElementById(
-        "dailyLoading"
-      );
-
-    const grid =
-      document.getElementById(
-        "grid"
-      );
-
-    const empty =
-      document.getElementById(
-        "empty"
-      );
-
-    const resultsCount =
-      document.getElementById(
-        "resultsCount"
-      );
-
-
-    errorBox.classList.remove(
-      "show"
-    );
-
-    empty.classList.remove(
-      "show"
-    );
-
+    errorBox.classList.remove("show");
+    empty.classList.remove("show");
     grid.innerHTML = "";
-
-    dailyLoading.classList.remove(
-      "show"
-    );
-
+    dailyLoading.classList.remove("show");
 
     if (!query) {
-
-      showToast(
-        "Digite o produto que deseja procurar."
-      );
-
+      showToast("Digite o produto que deseja procurar.");
       return;
-
     }
 
+    const activeStores = Object.keys(selectedStores).filter(store => selectedStores[store]);
 
-    loading.classList.add(
-      "show"
-    );
+    if (!activeStores.length) {
+      showToast("Selecione pelo menos uma fonte.");
+      return;
+    }
 
-    resultsCount.textContent =
-      "Procurando...";
-
+    loading.classList.add("show");
+    resultsCount.textContent = "Procurando nas lojas selecionadas...";
 
     try {
+      const requests = [];
 
-      const response =
-        await fetch(
-          "/api/ml_search?q=" +
-          encodeURIComponent(query)
+      if (selectedStores.mercado_livre) {
+        requests.push(
+          fetch("/api/ml_search?q=" + encodeURIComponent(query))
+            .then(async response => {
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.error || "Erro no Mercado Livre.");
+              return Array.isArray(data.results) ? data.results : [];
+            })
         );
-
-
-      const data =
-        await response.json();
-
-
-      if (!response.ok) {
-
-        throw new Error(
-          data.error ||
-          "Erro ao buscar produtos."
-        );
-
       }
 
-
-      currentProducts =
-        Array.isArray(
-          data.results
-        )
-          ? data.results
-          : [];
-
-
-      resultsCount.textContent =
-        currentProducts.length +
-        " oportunidades encontradas";
-
-
-      if (
-        !currentProducts.length
-      ) {
-
-        empty.textContent =
-          "Não encontramos produtos para essa busca.";
-
-        empty.classList.add(
-          "show"
+      if (selectedStores.amazon) {
+        requests.push(
+          fetch("/api/amazon_search?q=" + encodeURIComponent(query))
+            .then(async response => {
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.error || "Erro na Amazon.");
+              if (data.message) showNotice(data.message);
+              return Array.isArray(data.results) ? data.results : [];
+            })
         );
+      }
 
+      const settled = await Promise.allSettled(requests);
+      const allResults = [];
+      const errors = [];
+
+      for (const result of settled) {
+        if (result.status === "fulfilled") {
+          allResults.push(...result.value);
+        } else {
+          errors.push(result.reason?.message || "Uma das fontes não respondeu.");
+        }
+      }
+
+      const seen = new Set();
+      currentProducts = allResults.filter(product => {
+        const key = String(
+          product.store + ":" +
+          (product.item_id || product.asin || product.id || product.permalink || product.title)
+        );
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      resultsCount.textContent = currentProducts.length + " oportunidades encontradas";
+
+      if (errors.length) {
+        showNotice("⚠️ " + errors.join(" • "));
+      }
+
+      if (!currentProducts.length) {
+        empty.textContent = "Não encontramos ofertas para essa busca nas fontes selecionadas.";
+        empty.classList.add("show");
         return;
-
       }
 
-
-      renderProducts(
-        currentProducts
-      );
-
+      renderProducts(currentProducts);
 
     } catch (error) {
-
       console.error(error);
-
-      errorBox.textContent =
-        "❌ " +
-        error.message;
-
-      errorBox.classList.add(
-        "show"
-      );
-
-      resultsCount.textContent =
-        "Erro na busca";
-
+      errorBox.textContent = "❌ " + error.message;
+      errorBox.classList.add("show");
+      resultsCount.textContent = "Erro na busca";
     } finally {
-
-      loading.classList.remove(
-        "show"
-      );
-
+      loading.classList.remove("show");
     }
 
   }
@@ -1998,1223 +2027,3 @@
         error.message;
 
       errorBox.classList.add(
-        "show"
-      );
-
-      resultsCount.textContent =
-        "Erro nas promoções";
-
-    } finally {
-
-      dailyLoading.classList.remove(
-        "show"
-      );
-
-    }
-
-  }
-
-
-  // =========================================================
-  // RENDER PRODUTOS
-  // =========================================================
-
-  function renderProducts(
-    products
-  ) {
-
-    const grid =
-      document.getElementById(
-        "grid"
-      );
-
-    grid.innerHTML = "";
-
-    const batchButton =
-      document.getElementById("batchPostButton");
-
-    if (batchButton) {
-      batchButton.style.display =
-        products.some(product => getAffiliateLink(product))
-          ? "inline-block"
-          : "none";
-    }
-
-    const topButton = document.getElementById("topPostButton");
-    if (topButton) {
-      topButton.style.display =
-        products.some(product => getAffiliateLink(product))
-          ? "inline-block"
-          : "none";
-    }
-
-    const viralButton = document.getElementById("viralPostButton");
-    if (viralButton) {
-      viralButton.style.display =
-        products.some(product => getAffiliateLink(product))
-          ? "inline-block"
-          : "none";
-    }
-
-
-    products.forEach(
-      (product, index) => {
-
-        grid.appendChild(
-          createProductCard(
-            product,
-            index
-          )
-        );
-
-      }
-    );
-
-  }
-
-
-  function createProductCard(
-    product,
-    index
-  ) {
-
-    const card =
-      document.createElement(
-        "article"
-      );
-
-    card.className =
-      "card";
-
-
-    const image =
-      product.image ||
-      "https://via.placeholder.com/500x500?text=Sem+imagem";
-
-
-    const price =
-      formatMoney(
-        product.price
-      );
-
-
-    const originalPrice =
-      formatMoney(
-        product.original_price
-      );
-
-
-    const priceMin =
-      formatMoney(
-        product.price_min
-      );
-
-
-    const discount =
-      typeof product.discount === "number"
-        ? product.discount
-        : null;
-
-
-    const score =
-      typeof product.score === "number"
-        ? product.score
-        : 0;
-
-    const viralScore = calculateViralScore(product);
-
-
-    const commissionValue =
-      typeof product.affiliate_commission_estimate === "number"
-        ? product.affiliate_commission_estimate
-        : null;
-
-    const commissionRate =
-      typeof product.affiliate_commission_label === "string"
-        ? product.affiliate_commission_label
-        : null;
-
-    const commissionBasePrice =
-      typeof product.price === "number"
-        ? product.price
-        : typeof product.price_min === "number"
-          ? product.price_min
-          : null;
-
-    const commissionHtml =
-      commissionValue !== null && commissionRate
-        ? (
-          '<div class="commission-box">' +
-            '💰 Você ganha: ' + formatMoney(commissionValue) + ' por venda' +
-            '<small>Comissão padrão estimada de ' + escapeHtml(commissionRate) +
-            ' sobre ' + formatMoney(commissionBasePrice) +
-            ' • sem Ganhos Extras</small>' +
-          '</div>'
-        )
-        : "";
-
-    let priceHtml = "";
-
-
-    if (price) {
-
-      priceHtml = `
-
-        ${
-          originalPrice
-            ? `
-              <div class="price-old">
-                ${escapeHtml(
-                  originalPrice
-                )}
-              </div>
-            `
-            : ""
-        }
-
-        <div class="price">
-          ${escapeHtml(price)}
-        </div>
-
-      `;
-
-    } else if (priceMin) {
-
-      priceHtml = `
-
-        <div class="price-range">
-          A partir de
-        </div>
-
-        <div class="price">
-          ${escapeHtml(priceMin)}
-        </div>
-
-      `;
-
-    } else {
-
-      priceHtml = `
-
-        <div class="no-price">
-          Preço indisponível
-        </div>
-
-      `;
-
-    }
-
-
-    let badges = "";
-
-
-    if (
-      discount !== null
-    ) {
-
-      badges += `
-
-        <span class="tag discount">
-          🔥 ${discount}% OFF
-        </span>
-
-      `;
-
-    }
-
-
-    if (
-      product.has_winner
-    ) {
-
-      badges += `
-
-        <span class="tag winner">
-          🏆 Anúncio vencedor
-        </span>
-
-      `;
-
-    } else if (
-      product.mais_vendido
-    ) {
-
-      badges += `
-
-        <span class="tag">
-          🔥 Mais vendido
-        </span>
-
-      `;
-
-    }
-
-
-    if (
-      product.free_shipping
-    ) {
-
-      badges += `
-
-        <span class="tag shipping">
-          🚚 Frete grátis
-        </span>
-
-      `;
-
-    }
-
-
-    if (
-      typeof product.sold_quantity ===
-      "number" &&
-      product.sold_quantity > 0
-    ) {
-
-      badges += `
-
-        <span class="tag">
-          🛒 ${
-            product.sold_quantity
-              .toLocaleString(
-                "pt-BR"
-              )
-          } vendidos
-        </span>
-
-      `;
-
-    }
-
-
-    const discountBadge =
-      discount !== null
-        ? `
-          <div class="deal-badge">
-            🔥 ${discount}% OFF
-          </div>
-        `
-        : "";
-
-
-    card.innerHTML = `
-
-      <div class="image-area">
-
-        ${discountBadge}
-
-        <div class="score-badge">
-          Radar ${score}/100
-        </div>
-
-        <img
-          class="product-image"
-          src="${escapeHtml(image)}"
-          alt="${escapeHtml(
-            product.title ||
-            product.titulo ||
-            "Produto Mercado Livre"
-          )}"
-          loading="lazy"
-        >
-
-      </div>
-
-
-      <div class="card-content">
-
-        <div class="product-title">
-          ${escapeHtml(
-            product.title
-          )}
-          <div class="viral-badge">
-            🚀 Potencial de conteúdo: ${viralScore}/100
-          </div>
-        </div>
-
-
-        ${priceHtml}
-
-        ${commissionHtml}
-
-
-        <div class="info-list">
-
-          ${badges}
-
-          <span class="tag">
-            ✓ ${
-              escapeHtml(
-                product.condition ||
-                "Novo"
-              )
-            }
-          </span>
-
-        </div>
-
-
-        <div class="score-area">
-
-          <div class="score-title">
-
-            <span>
-              Potencial da oportunidade
-            </span>
-
-            <span>
-              ${score}/100
-            </span>
-
-          </div>
-
-
-          <div class="score-bar">
-
-            <div
-              class="score-fill"
-              style="width:${score}%"
-            ></div>
-
-          </div>
-
-        </div>
-
-
-        <div class="actions">
-
-          <button
-            class="action primary"
-            onclick="openProduct(${index})"
-          >
-            🔗 PRODUTO
-          </button>
-
-          <button
-            class="action dark"
-            onclick="openAffiliateModal(${index})"
-          >
-            ${affiliateButtonLabel(product)}
-          </button>
-
-
-          <button
-            class="action dark"
-            onclick="copyProductLink(${index})"
-          >
-            📋 COPIAR LINK AFILIADO
-          </button>
-
-
-          <button
-            class="action green"
-            onclick="copyFacebookPost(${index})"
-          >
-            📱 COPIAR POST PRONTO
-          </button>
-
-          <button
-            class="viral-button"
-            onclick="copyViralPost(${index})"
-          >
-            🚀 GERAR POST VIRAL
-          </button>
-
-          <button
-            class="facebook-groups-button"
-            onclick="openFacebookGroups(${index})"
-          >
-            📘 GRUPOS FACEBOOK
-          </button>
-
-        </div>
-
-      </div>
-
-    `;
-
-
-    return card;
-
-  }
-
-
-  // =========================================================
-  // ABRIR PRODUTO
-  // =========================================================
-
-  function openProduct(
-    index
-  ) {
-
-    const product =
-      currentProducts[index];
-
-
-    if (!product) {
-      return;
-    }
-
-
-    if (
-      !product.permalink
-    ) {
-
-      showToast(
-        "Link do produto indisponível."
-      );
-
-      return;
-
-    }
-
-
-    window.open(
-      product.permalink,
-      "_blank"
-    );
-
-  }
-
-
-  // =========================================================
-  // COPIAR LINK
-  // =========================================================
-
-  async function copyProductLink(
-    index
-  ) {
-
-    const product = currentProducts[index];
-    if (!product) return;
-
-    const link = getAffiliateLink(product);
-
-    if (!link) {
-      openAffiliateModal(index);
-      showToast("🔗 Gere e salve o link de afiliado deste produto.");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(link);
-      showToast("🔗 Link de afiliado copiado!");
-    } catch (error) {
-      showToast("Não foi possível copiar.");
-    }
-
-  }
-
-
-  // GRUPOS / PESQUISAS NO FACEBOOK
-  // =========================================================
-
-  function facebookGroupSearches(product) {
-    const title = String(product.title || "").trim();
-    const words = title.replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, " ").split(/\s+/)
-      .filter(w => w.length >= 3);
-
-    const stop = new Set([
-      "kit","com","para","por","uma","um","de","da","do","das","dos",
-      "novo","nova","original","oficial","mercado","livre","unidade"
-    ]);
-
-    const keywords = words
-      .filter(w => !stop.has(w.toLowerCase()))
-      .slice(0, 5)
-      .join(" ");
-
-    return keywords || title;
-  }
-
-
-  function scoreFacebookGroup(group, product) {
-    const text = (
-      String(group.name || "") + " " +
-      String(group.snippet || "")
-    ).toLowerCase();
-
-    const title = String(product.title || "").toLowerCase();
-    const words = title
-      .replace(/[^a-záàâãéêíóôõúç0-9 ]/gi, " ")
-      .split(/\s+/)
-      .filter(w => w.length >= 4);
-
-    const stop = new Set([
-      "para","com","uma","como","novo","nova","original",
-      "mercado","livre","produto","unidade","branco","branca",
-      "preto","preta","tamanho"
-    ]);
-
-    const keywords = [...new Set(words.filter(w => !stop.has(w)))].slice(0, 8);
-
-    let score = 0;
-
-    for (const word of keywords) {
-      if (text.includes(word)) score += 12;
-    }
-
-    if (/oferta|ofertas|promo|promoção|promocao|desconto|achadinho|achadinhos|compras|shopping/i.test(text)) {
-      score += 8;
-    }
-
-    if (/grupo|grupos/i.test(text)) score += 2;
-
-    return score;
-  }
-
-  async function findFacebookGroupsAutomatically() {
-    const product = currentProducts.find(p =>
-      (p.title || "Produto") === document.getElementById("facebookGroupsProduct").textContent
-    );
-
-    if (!product) {
-      showToast("Abra os grupos de um produto primeiro.");
-      return;
-    }
-
-    const box = document.getElementById("automaticFacebookGroupsList");
-    box.innerHTML =
-      '<div style="margin-top:10px;padding:12px;text-align:center;color:#666">🔎 Procurando grupos públicos...</div>';
-
-    try {
-      const response = await fetch(
-        "/api/facebook_groups?q=" +
-        encodeURIComponent(facebookGroupSearches(product))
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao procurar grupos.");
-      }
-
-      if (!Array.isArray(data.results) || !data.results.length) {
-        const fallback = data.fallbackSearch || "https://www.facebook.com/search/groups/?q=" + encodeURIComponent(facebookGroupSearches(product));
-        box.innerHTML =
-          '<div style="margin-top:10px;padding:12px;background:#f7f7f7;border-radius:10px;color:#555;font-size:13px;line-height:1.5">' +
-            '<strong>🔎 O Facebook não deixou os grupos públicos aparecerem na busca externa.</strong><br>' +
-            'Para não deixar o Radar travado, já preparei a pesquisa com o nome deste produto.' +
-            '<button class="group-mini-button" style="margin-top:10px;width:100%" onclick="window.open(\'' +
-              String(fallback).replace(/'/g, "\\'") +
-              '\', \'_blank\')">📘 ABRIR GRUPOS NO FACEBOOK</button>' +
-          '</div>';
-        return;
-      }
-
-      const rankedGroups = data.results
-        .map(group => ({
-          ...group,
-          relevance: scoreFacebookGroup(group, product)
-        }))
-        .sort((a, b) => b.relevance - a.relevance);
-
-      box.innerHTML = rankedGroups.map((group, index) =>
-        '<div class="saved-group">' +
-          '<div class="saved-group-info">' +
-            (index + 1) + '. ' + escapeHtml(group.name || "Grupo Facebook") +
-            '<small>' + escapeHtml(group.snippet || "Grupo público relacionado ao produto") +
-            (group.relevance >= 20 ? ' • 🎯 Alta relevância' : group.relevance >= 10 ? ' • 🟡 Relevante' : '') +
-            '</small>' +
-          '</div>' +
-          '<div class="saved-group-actions">' +
-            '<button class="group-mini-button" onclick="window.open(\'' +
-              String(group.url).replace(/'/g, "\\'") +
-              '\', \'_blank\')">ABRIR GRUPO</button>' +
-            '<button class="group-mini-button" style="margin-left:6px" onclick="openGroupAndCopyPost(\'' +
-              String(group.url).replace(/'/g, "\\'") +
-              '\')">📋 COPIAR + ABRIR</button>' +
-          '</div>' +
-        '</div>'
-      ).join("");
-
-      showToast("📘 " + data.results.length + " grupo(s) encontrado(s)!");
-    } catch (error) {
-      console.error(error);
-      box.innerHTML =
-        '<div style="margin-top:10px;color:#a33;font-size:13px">❌ Não foi possível pesquisar os grupos agora.</div>';
-      showToast("❌ Erro ao procurar grupos.");
-    }
-  }
-
-
-  function openFacebookGroups(index) {
-    const product = currentProducts[index];
-    if (!product) return;
-
-    facebookGroupsProductIndex = index;
-
-    document.getElementById("facebookGroupsProduct").textContent =
-      product.title || "Produto";
-
-    document.getElementById("automaticFacebookGroupsList").innerHTML =
-      '<div style="margin-top:10px;color:#777;font-size:13px">Clique em “ENCONTRAR GRUPOS AGORA” para pesquisar.</div>';
-
-    document.getElementById("facebookGroupsModal").classList.add("show");
-  }
-
-
-  function closeFacebookGroups() {
-    document.getElementById("facebookGroupsModal").classList.remove("show");
-  }
-
-  async function openGroupAndCopyPost(groupUrl) {
-    const product = currentProducts[facebookGroupsProductIndex];
-
-    if (!product) {
-      showToast("Abra os grupos de um produto primeiro.");
-      return;
-    }
-
-    const affiliateLink = getAffiliateLink(product);
-
-    if (!affiliateLink) {
-      openAffiliateModal(facebookGroupsProductIndex);
-      showToast("🔗 Salve primeiro o link de afiliado deste produto.");
-      return;
-    }
-
-    // Abre imediatamente para evitar bloqueio de pop-up pelo navegador.
-    const groupWindow = window.open(groupUrl, "_blank");
-
-    try {
-      await navigator.clipboard.writeText(generateFacebookPost(product));
-
-      if (groupWindow) {
-        showToast("📋 Post copiado! O grupo foi aberto.");
-      } else {
-        showToast("📋 Post copiado! O navegador bloqueou a abertura do grupo.");
-      }
-    } catch (error) {
-      if (groupWindow) {
-        showToast("📘 Grupo aberto, mas não foi possível copiar o post.");
-      } else {
-        showToast("⚠️ O navegador bloqueou a abertura do grupo.");
-      }
-    }
-  }
-
-
-
-
-
-  // POTENCIAL DE CONTEÚDO / VIRALIZAÇÃO
-  // =========================================================
-
-  function calculateViralScore(product) {
-    const discount = Math.max(0, Number(product.discount) || 0);
-    const price = Number(product.price) || Number(product.price_min) || 0;
-    const score = Math.max(0, Math.min(100, Number(product.score) || 0));
-    const sold = Math.max(0, Number(product.sold_quantity) || 0);
-
-    let points = score * 0.35;
-    points += Math.min(discount, 70) * 0.45;
-
-    if (price > 0 && price <= 150) points += 10;
-    else if (price <= 300) points += 6;
-
-    if (product.free_shipping) points += 7;
-    if (product.mais_vendido) points += 8;
-    if (product.has_winner) points += 4;
-
-    if (sold > 0) points += Math.min(6, sold / 150);
-
-    return Math.max(0, Math.min(100, Math.round(points)));
-  }
-
-
-  function generateViralPost(product) {
-    const link = getAffiliateLink(product);
-    const price = formatMoney(product.price);
-    const originalPrice = formatMoney(product.original_price);
-    const discount = Number(product.discount) || 0;
-
-    const priceText =
-      price && originalPrice && product.original_price > product.price
-        ? "De " + originalPrice + " por " + price
-        : price
-          ? "Por " + price
-          : "Confira o preço no anúncio";
-
-    return `🚨 OLHA ESSE ACHADO!
-
-🛒 ${product.title}
-
-💰 ${priceText}
-${discount > 0 ? "🔥 " + discount + "% OFF" : ""}
-${product.free_shipping ? "🚚 Frete grátis" : ""}
-
-👀 Eu conferiria antes que o preço mude:
-
-👉 ${link}
-
-⚠️ Preço e disponibilidade podem mudar.
-
-#Achadinhos #Oferta #MercadoLivre #Promoção #DicaDeCompra`.trim();
-  }
-
-
-  async function copyViralPost(index) {
-    const product = currentProducts[index];
-    if (!product) return;
-
-    if (!getAffiliateLink(product)) {
-      openAffiliateModal(index);
-      showToast("🔗 Salve primeiro o link de afiliado deste produto.");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(generateViralPost(product));
-      showToast("🚀 Post viral copiado!");
-    } catch (error) {
-      showToast("Não foi possível copiar o post.");
-    }
-  }
-
-
-  function openViralPosts() {
-    const ranked = currentProducts
-      .filter(product => getAffiliateLink(product))
-      .map(product => ({ product, viralScore: calculateViralScore(product) }))
-      .sort((a, b) => b.viralScore - a.viralScore)
-      .slice(0, 5);
-
-    if (!ranked.length) {
-      showToast("🔗 Salve links afiliados para gerar posts com potencial viral.");
-      return;
-    }
-
-    const posts = ranked.map((entry, index) =>
-      "━━━━━━━━━━━━━━━━━━━━\n" +
-      "🚀 VIRAL " + (index + 1) + " • " + entry.viralScore + "/100\n" +
-      "━━━━━━━━━━━━━━━━━━━━\n" +
-      generateViralPost(entry.product)
-    ).join("\n\n");
-
-    document.getElementById("topPostSummary").textContent =
-      "Selecionamos " + ranked.length + " produto(s) com maior potencial de conteúdo.";
-
-    document.getElementById("topPostText").value = posts;
-    document.getElementById("topPostModal").classList.add("show");
-  }
-
-
-  // SELEÇÃO AUTOMÁTICA DAS MELHORES OFERTAS
-  // =========================================================
-
-  function rankProductsForPosting(products) {
-    return products
-      .filter(product => getAffiliateLink(product))
-      .map(product => {
-        const score = Number(product.score) || 0;
-        const discount = Number(product.discount) || 0;
-        const sold = Number(product.sold_quantity) || 0;
-
-        let points = score * 1.5;
-        points += Math.min(discount, 80) * 0.6;
-        if (product.free_shipping) points += 8;
-        if (product.mais_vendido) points += 8;
-        if (product.has_winner) points += 5;
-        if (sold > 0) points += Math.min(sold / 100, 10);
-
-        return { product, points };
-      })
-      .sort((a, b) => b.points - a.points);
-  }
-
-
-  function openTopPosts() {
-    const ranked = rankProductsForPosting(currentProducts);
-    const selected = ranked.slice(0, 5);
-
-    if (!selected.length) {
-      showToast("🔗 Salve links de afiliado para gerar os melhores posts.");
-      return;
-    }
-
-    const posts = selected.map((entry, index) => {
-      const product = entry.product;
-      return "━━━━━━━━━━━━━━━━━━━━\n" +
-        "TOP " + (index + 1) + " • RADAR " + (Number(product.score) || 0) + "/100\n" +
-        "━━━━━━━━━━━━━━━━━━━━\n" +
-        generateFacebookPost(product);
-    }).join("\n\n");
-
-    document.getElementById("topPostSummary").textContent =
-      "O Radar selecionou automaticamente " + selected.length + " oferta(s) entre as melhores encontradas.";
-
-    document.getElementById("topPostText").value = posts;
-    document.getElementById("topPostModal").classList.add("show");
-  }
-
-
-  function closeTopPosts() {
-    document.getElementById("topPostModal").classList.remove("show");
-  }
-
-
-  async function copyTopPosts() {
-    const text = document.getElementById("topPostText").value;
-
-    if (!text) {
-      showToast("Nenhum post selecionado.");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast("🔥 Melhores posts copiados!");
-    } catch (error) {
-      showToast("Não foi possível copiar os melhores posts.");
-    }
-  }
-
-
-  // POSTS EM LOTE
-  // =========================================================
-
-  function getProductsWithAffiliateLinks() {
-    return currentProducts.filter(product => getAffiliateLink(product));
-  }
-
-
-  function openBatchPosts() {
-    const products = getProductsWithAffiliateLinks();
-
-    if (!products.length) {
-      showToast("🔗 Salve pelo menos um link de afiliado para gerar os posts.");
-      return;
-    }
-
-    const posts = products.map((product, index) => {
-      return "━━━━━━━━━━━━━━━━━━━━\n" +
-        "POST " + (index + 1) + "\n" +
-        "━━━━━━━━━━━━━━━━━━━━\n" +
-        generateFacebookPost(product);
-    }).join("\n\n");
-
-    document.getElementById("batchPostSummary").textContent =
-      "Pronto para publicar: " + products.length + " oferta(s).";
-
-    document.getElementById("batchPostCount").textContent =
-      "O Radar encontrou " + products.length +
-      " produto(s) com link de afiliado salvo. Você pode copiar tudo de uma vez.";
-
-    document.getElementById("batchPostText").value = posts;
-    document.getElementById("batchPostModal").classList.add("show");
-  }
-
-
-  function closeBatchPosts() {
-    document.getElementById("batchPostModal").classList.remove("show");
-  }
-
-
-  async function copyBatchPosts() {
-    const text = document.getElementById("batchPostText").value;
-
-    if (!text) {
-      showToast("Nenhum post disponível.");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast("📱 Todos os posts foram copiados!");
-    } catch (error) {
-      showToast("Não foi possível copiar os posts.");
-    }
-  }
-
-
-  // POST FACEBOOK
-  // =========================================================
-
-  function generateFacebookPost(
-    product
-  ) {
-
-    const price = formatMoney(product.price);
-    const originalPrice = formatMoney(product.original_price);
-    const priceMin = formatMoney(product.price_min);
-
-    let priceText = "Confira o preço no anúncio.";
-
-    if (price && originalPrice && product.original_price > product.price) {
-      priceText = "De " + originalPrice + " por " + price;
-    } else if (price) {
-      priceText = "Por apenas " + price;
-    } else if (priceMin) {
-      priceText = "A partir de " + priceMin;
-    }
-
-    const discountText =
-      typeof product.discount === "number" && product.discount > 0
-        ? "\n🔥 " + product.discount + "% OFF"
-        : "";
-
-    const shippingText =
-      product.free_shipping
-        ? "\n🚚 Frete grátis"
-        : "";
-
-    const link = getAffiliateLink(product);
-
-    const post = `🔥 OFERTA DO DIA NO MERCADO LIVRE!
-
-🛒 ${product.title}
-
-💰 ${priceText}${discountText}${shippingText}
-
-👉 Veja a oferta:
-${link}
-
-⚡ Corre para conferir! O preço e a disponibilidade podem mudar.
-
-#MercadoLivre #Oferta #Promoção #Achadinhos #Ofertas`.trim();
-
-    return post;
-  }
-
-
-  async function copyFacebookPost(
-    index
-  ) {
-
-    const product =
-      currentProducts[index];
-
-
-    if (!product) {
-      return;
-    }
-
-
-    const affiliateLinkForProduct = getAffiliateLink(product);
-
-    if (!affiliateLinkForProduct) {
-      openAffiliateModal(index);
-      showToast("🔗 Salve primeiro o link de afiliado deste produto.");
-      return;
-    }
-
-    const post =
-      generateFacebookPost(
-        product
-      );
-
-
-    try {
-
-      await navigator.clipboard.writeText(
-        post
-      );
-
-
-      showToast(
-        "📱 Post copiado!"
-      );
-
-    } catch (error) {
-
-      showToast(
-        "Não foi possível copiar o post."
-      );
-
-    }
-
-  }
-
-
-  // =========================================================
-  // ENTER NA BUSCA
-  // =========================================================
-
-  document
-    .getElementById(
-      "searchInput"
-    )
-    .addEventListener(
-      "keydown",
-      function(event) {
-
-        if (
-          event.key === "Enter"
-        ) {
-
-          searchProducts();
-
-        }
-
-      }
-    );
-
-
-  // =========================================================
-  // OAUTH
-  // =========================================================
-
-  async function handleOAuthCallback() {
-
-    const params =
-      new URLSearchParams(
-        window.location.search
-      );
-
-
-    const code =
-      params.get("code");
-
-
-    const state =
-      params.get("state");
-
-
-    const oauthError =
-      params.get("error");
-
-
-    if (oauthError) {
-
-      showNotice(
-        "❌ A autorização do Mercado Livre foi cancelada."
-      );
-
-      window.history.replaceState(
-        {},
-        document.title,
-        window.location.pathname
-      );
-
-      return false;
-
-    }
-
-
-    if (!code) {
-      return false;
-    }
-
-
-    showNotice(
-      "🔄 Finalizando conexão com o Mercado Livre..."
-    );
-
-
-    try {
-
-      const response =
-        await fetch(
-          "/api/ml/exchange?code=" +
-          encodeURIComponent(code) +
-          "&state=" +
-          encodeURIComponent(
-            state || ""
-          )
-        );
-
-
-      const data =
-        await response.json();
-
-
-      if (!response.ok) {
-
-        throw new Error(
-          data.error ||
-          "Não foi possível finalizar a conexão."
-        );
-
-      }
-
-
-      if (
-        !data.connected ||
-        !data.user
-      ) {
-
-        throw new Error(
-          "O Mercado Livre não confirmou a conexão."
-        );
-
-      }
-
-
-      setConnected(
-        data.user.nickname,
-        data.user.id
-      );
-
-
-      showToast(
-        "🟢 Mercado Livre conectado!"
-      );
-
-
-      window.history.replaceState(
-        {},
-        document.title,
-        window.location.pathname
-      );
-
-
-      return true;
-
-
-    } catch (error) {
-
-      console.error(
-        error
-      );
-
-      showNotice(
-        "❌ " +
-        error.message
-      );
-
-
-      window.history.replaceState(
-        {},
-        document.title,
-        window.location.pathname
-      );
-
-
-      return false;
-
-    }
-
-  }
-
-
-  // =========================================================
-  // INICIALIZAÇÃO
-  // =========================================================
-
-  async function initializeApp() {
-
-    loadAffiliateLinks();
-
-
-    const returnedFromOAuth =
-      await handleOAuthCallback();
-
-
-    if (
-      !returnedFromOAuth
-    ) {
-
-      await checkConnection();
-
-    }
-
-  }
-
-
-  initializeApp();
-
-</script>
-
-</body>
-</html>
