@@ -1,5 +1,35 @@
 const https = require("https");
 
+async function serperSearch(query) {
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey) return [];
+
+  const response = await fetch("https://google.serper.dev/search", {
+    method: "POST",
+    headers: {
+      "X-API-KEY": apiKey,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      q: "site:facebook.com/groups " + query,
+      gl: "br",
+      hl: "pt-br",
+      num: 10
+    })
+  });
+
+  if (!response.ok) return [];
+
+  const data = await response.json();
+  return (data.organic || [])
+    .filter(item => /facebook\\.com\\/groups\\//i.test(item.link || ""))
+    .map(item => ({
+      name: item.title || "Grupo Facebook",
+      url: item.link,
+      snippet: item.snippet || "Grupo relacionado ao produto."
+    }));
+}
+
 function cleanQuery(q) {
   return String(q || "")
     .replace(/[^\p{L}\p{N}\s-]/gu, " ")
@@ -157,9 +187,27 @@ module.exports = async (req, res) => {
       q + " grupo"
     ];
 
-    const providers = ["google", "duckduckgo", "bing"];
     const results = [];
     const seen = new Set();
+
+    // Primeiro usa uma SERP profissional quando a chave estiver configurada.
+    if (process.env.SERPER_API_KEY) {
+      for (const query of queries) {
+        try {
+          const found = await serperSearch(query);
+          for (const item of found) {
+            addResult(results, seen, item.url, item.name, item.snippet);
+            if (results.length >= 10) break;
+          }
+        } catch (error) {
+          console.error("Serper search error:", error.message);
+        }
+        if (results.length >= 10) break;
+      }
+    }
+
+    // Sem chave ou se a SERP profissional não retornar grupos, usa os fallbacks gratuitos.
+    const providers = ["google", "duckduckgo", "bing"];
 
     for (const query of queries) {
       for (const provider of providers) {
