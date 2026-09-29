@@ -503,6 +503,91 @@
       transform: translateX(-50%) translateY(0);
     }
 
+    .daily-box {
+      background: white;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 5px 25px rgba(0,0,0,.08);
+      margin: 20px 0 25px;
+      border: 2px solid #ffe600;
+    }
+
+    .daily-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 12px;
+    }
+
+    .daily-title {
+      font-size: 22px;
+      font-weight: 900;
+      margin: 0;
+    }
+
+    .daily-subtitle {
+      color: #666;
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    .daily-button {
+      border: 0;
+      border-radius: 11px;
+      padding: 12px 16px;
+      background: #222;
+      color: white;
+      font-weight: 900;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .daily-button:hover {
+      filter: brightness(.94);
+    }
+
+    .category-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .category-button {
+      border: 1px solid #ddd;
+      background: #f7f7f7;
+      color: #333;
+      border-radius: 999px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .category-button.active {
+      background: #ffe600;
+      border-color: #ffe600;
+    }
+
+    .daily-loading {
+      display: none;
+      margin-top: 12px;
+      color: #555;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .daily-loading.show {
+      display: block;
+    }
+
+    .daily-note {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #777;
+    }
+
     @media (max-width: 900px) {
       .grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -657,6 +742,44 @@
     </section>
 
 
+    <section class="daily-box">
+
+      <div class="daily-head">
+        <div>
+          <h2 class="daily-title">🔥 PROMOÇÕES DO DIA</h2>
+          <div class="daily-subtitle">
+            O Radar pesquisa automaticamente várias categorias e organiza as melhores oportunidades encontradas.
+          </div>
+        </div>
+
+        <button
+          class="daily-button"
+          onclick="loadDailyPromotions()"
+        >
+          🚀 ENCONTRAR OFERTAS
+        </button>
+      </div>
+
+      <div class="category-row">
+        <button class="category-button active" data-category="all" onclick="selectDailyCategory(this, 'all')">🔥 Todas</button>
+        <button class="category-button" data-category="celulares" onclick="selectDailyCategory(this, 'celulares')">📱 Celulares</button>
+        <button class="category-button" data-category="eletronicos" onclick="selectDailyCategory(this, 'eletronicos')">🎧 Eletrônicos</button>
+        <button class="category-button" data-category="casa" onclick="selectDailyCategory(this, 'casa')">🏠 Casa</button>
+        <button class="category-button" data-category="informatica" onclick="selectDailyCategory(this, 'informatica')">💻 Informática</button>
+        <button class="category-button" data-category="games" onclick="selectDailyCategory(this, 'games')">🎮 Games</button>
+        <button class="category-button" data-category="moda" onclick="selectDailyCategory(this, 'moda')">👕 Moda</button>
+      </div>
+
+      <div id="dailyLoading" class="daily-loading">
+        🔎 Caçando ofertas em várias categorias...
+      </div>
+
+      <div class="daily-note">
+        Os dados e preços dependem do que o Mercado Livre disponibiliza para cada produto naquele momento.
+      </div>
+
+    </section>
+
     <div id="error" class="error"></div>
 
 
@@ -717,6 +840,7 @@
   let currentProducts = [];
 
   let affiliateLink = "";
+  let selectedDailyCategory = "all";
 
 
   // =========================================================
@@ -1090,7 +1214,7 @@
     }
 
   }
-
+\n\n  // =========================================================\n  // PROMOÇÕES DO DIA\n  // =========================================================\n\n  function selectDailyCategory(button, category) {\n\n    selectedDailyCategory = category;\n\n    document.querySelectorAll(".category-button").forEach((item) => {\n      item.classList.remove("active");\n    });\n\n    button.classList.add("active");\n\n    loadDailyPromotions(category);\n\n  }\n\n\n  async function loadDailyPromotions(category = selectedDailyCategory) {\n\n    selectedDailyCategory = category;\n\n    const errorBox = document.getElementById("error");\n    const empty = document.getElementById("empty");\n    const loading = document.getElementById("loading");\n    const dailyLoading = document.getElementById("dailyLoading");\n    const grid = document.getElementById("grid");\n    const resultsCount = document.getElementById("resultsCount");\n\n    errorBox.classList.remove("show");\n    empty.classList.remove("show");\n    grid.innerHTML = "";\n    loading.classList.remove("show");\n    dailyLoading.classList.add("show");\n    resultsCount.textContent = "Caçando ofertas...";\n\n    try {\n\n      const response = await fetch(\n        "/api/ml_promocoes?category=" + encodeURIComponent(category)\n      );\n\n      const data = await response.json();\n\n      if (!response.ok) {\n        throw new Error(data.error || "Erro ao encontrar ofertas.");\n      }\n\n      currentProducts = Array.isArray(data.results) ? data.results : [];\n\n      resultsCount.textContent =\n        currentProducts.length + " oportunidades encontradas";\n\n      if (!currentProducts.length) {\n        empty.textContent = "Não encontramos oportunidades suficientes nessa categoria agora.";\n        empty.classList.add("show");\n        return;\n      }\n\n      renderProducts(currentProducts);\n\n      showToast("🔥 Ofertas encontradas e organizadas pelo Radar!");\n\n    } catch (error) {\n\n      console.error(error);\n\n      errorBox.textContent = "❌ " + error.message;\n      errorBox.classList.add("show");\n      resultsCount.textContent = "Erro nas promoções";\n\n    } finally {\n\n      dailyLoading.classList.remove("show");\n\n    }\n\n  }\n
 
   // =========================================================
   // RENDER DOS PRODUTOS
