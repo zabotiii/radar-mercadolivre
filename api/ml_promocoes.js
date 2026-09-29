@@ -130,7 +130,7 @@ function addCommission(product, categoryName) {
       ? Math.round(rate * 100) + "%"
       : null;
 
-  return addCommission(product, categoryName);
+  return product;
 }
 
 function getImage(product) {
