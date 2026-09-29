@@ -387,6 +387,73 @@
       margin-top: 3px;
     }
 
+    .saved-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px;
+      margin-top: 8px;
+      border: 1px solid #e3e5e8;
+      border-radius: 10px;
+      background: #f8f9fa;
+    }
+
+    .saved-group-info {
+      min-width: 0;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .saved-group-info small {
+      display: block;
+      color: #777;
+      font-weight: 600;
+      margin-top: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .saved-group-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .group-mini-button {
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #1877f2;
+      color: white;
+      font-weight: 800;
+      font-size: 11px;
+    }
+
+    .group-delete-button {
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #eee;
+      color: #555;
+      font-weight: 800;
+      font-size: 11px;
+    }
+
+    .group-form {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .group-form input, .group-form select {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #ddd;
+      border-radius: 9px;
+      font-family: inherit;
+    }
+
     .top-post-note {
       margin-top: 8px;
       font-size: 12px;
@@ -1192,6 +1259,35 @@
   <div class="affiliate-modal">
     <h3>📘 Grupos para este produto</h3>
     <div id="facebookGroupsProduct" class="affiliate-modal-product"></div>
+
+    <div class="affiliate-step" style="margin-top:15px">
+      <strong>⭐ Seus grupos cadastrados</strong>
+      <div id="savedFacebookGroupsList"></div>
+
+      <div class="group-form">
+        <input id="newFacebookGroupName" type="text" placeholder="Nome do grupo">
+        <input id="newFacebookGroupUrl" type="url" placeholder="https://www.facebook.com/groups/...">
+        <select id="newFacebookGroupCategory">
+          <option value="ofertas">Ofertas e promoções</option>
+          <option value="eletronicos">Eletrônicos / tecnologia</option>
+          <option value="casa">Casa / cozinha</option>
+          <option value="moda">Moda / calçados</option>
+          <option value="celulares">Celulares</option>
+          <option value="beleza">Beleza</option>
+          <option value="pet">Pets</option>
+          <option value="bebes">Bebês / infantil</option>
+          <option value="geral">Geral</option>
+        </select>
+        <button class="modal-open-generator" onclick="saveFacebookGroupFromModal()">
+          ⭐ SALVAR GRUPO
+        </button>
+      </div>
+    </div>
+
+    <div class="affiliate-step" style="margin-top:15px">
+      <strong>🎯 Grupos que combinam com este produto</strong>
+      <div id="recommendedFacebookGroupsList"></div>
+    </div>
 
     <div class="affiliate-step">
       <strong>🎯 Pesquisas recomendadas</strong>
@@ -2379,35 +2475,153 @@
   // GRUPOS / PESQUISAS NO FACEBOOK
   // =========================================================
 
+  function loadFacebookGroups() {
+    try {
+      const saved = localStorage.getItem("radarFacebookGroups");
+      const groups = saved ? JSON.parse(saved) : [];
+      return Array.isArray(groups) ? groups : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+
+  function saveFacebookGroups(groups) {
+    localStorage.setItem("radarFacebookGroups", JSON.stringify(groups));
+  }
+
+
+  function facebookGroupCategory(product) {
+    const title = String(product.title || "").toLowerCase();
+
+    if (/fone|headset|teclado|mouse|monitor|notebook|computador|pc|placa|ssd|roteador|cabo|carregador|eletrôn|smartwatch/.test(title)) return ["eletronicos", "ofertas"];
+    if (/celular|iphone|samsung|xiaomi|motorola|redmi|smartphone/.test(title)) return ["celulares", "eletronicos", "ofertas"];
+    if (/air fryer|airfryer|panela|cozinha|liquidificador|cafeteira|aspirador|casa|mop/.test(title)) return ["casa", "ofertas"];
+    if (/tênis|tenis|sapato|sandália|sandalia|vestido|camisa|calça|roupa|moda/.test(title)) return ["moda", "ofertas"];
+    if (/shampoo|perfume|maquiagem|beleza|skincare|creme/.test(title)) return ["beleza", "ofertas"];
+    if (/cachorro|cão|cao|gato|pet|ração|racao|coleira/.test(title)) return ["pet", "ofertas"];
+    if (/bebê|bebe|infantil|criança|crianca|fralda|mamadeira|brinquedo/.test(title)) return ["bebes", "ofertas"];
+    return ["ofertas", "geral"];
+  }
+
+
+  function renderSavedFacebookGroups(product) {
+    const all = loadFacebookGroups();
+    const categories = facebookGroupCategory(product);
+    const recommended = all.filter(group => categories.includes(group.category));
+
+    const list = document.getElementById("savedFacebookGroupsList");
+    const rec = document.getElementById("recommendedFacebookGroupsList");
+
+    const render = (groups, target, emptyText) => {
+      if (!groups.length) {
+        target.innerHTML = '<div style="margin-top:8px;color:#777;font-size:12px">' + emptyText + '</div>';
+        return;
+      }
+
+      target.innerHTML = groups.map(group =>
+        '<div class="saved-group">' +
+          '<div class="saved-group-info">' +
+            escapeHtml(group.name) +
+            '<small>' + escapeHtml(group.categoryLabel) + '</small>' +
+          '</div>' +
+          '<div class="saved-group-actions">' +
+            '<button class="group-mini-button" onclick="openSavedFacebookGroup(\'' + group.id + '\')">ABRIR</button>' +
+            '<button class="group-delete-button" onclick="deleteFacebookGroup(\'' + group.id + '\')">EXCLUIR</button>' +
+          '</div>' +
+        '</div>'
+      ).join("");
+    };
+
+    render(recommended, rec, "Nenhum grupo cadastrado para esta categoria ainda.");
+    render(all, list, "Cadastre abaixo os grupos que você costuma usar.");
+  }
+
+
+  function saveFacebookGroupFromModal() {
+    const nameEl = document.getElementById("newFacebookGroupName");
+    const urlEl = document.getElementById("newFacebookGroupUrl");
+    const categoryEl = document.getElementById("newFacebookGroupCategory");
+
+    const name = nameEl.value.trim();
+    const url = urlEl.value.trim();
+    const category = categoryEl.value;
+
+    if (!name || !url) {
+      showToast("Informe o nome e o link do grupo.");
+      return;
+    }
+
+    if (!/^https:\/\/(www\.)?facebook\.com\/groups\//i.test(url)) {
+      showToast("Cole o link de um grupo do Facebook.");
+      return;
+    }
+
+    const labels = {
+      ofertas: "Ofertas e promoções",
+      eletronicos: "Eletrônicos / tecnologia",
+      casa: "Casa / cozinha",
+      moda: "Moda / calçados",
+      celulares: "Celulares",
+      beleza: "Beleza",
+      pet: "Pets",
+      bebes: "Bebês / infantil",
+      geral: "Geral"
+    };
+
+    const groups = loadFacebookGroups();
+    const existing = groups.find(g => g.url.toLowerCase() === url.toLowerCase());
+
+    if (existing) {
+      existing.name = name;
+      existing.category = category;
+      existing.categoryLabel = labels[category] || "Geral";
+    } else {
+      groups.push({
+        id: "g_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+        name,
+        url,
+        category,
+        categoryLabel: labels[category] || "Geral"
+      });
+    }
+
+    saveFacebookGroups(groups);
+    nameEl.value = "";
+    urlEl.value = "";
+    renderSavedFacebookGroups(currentProducts[affiliateProductIndex] || currentProducts[0] || {});
+    showToast("⭐ Grupo salvo no Radar!");
+  }
+
+
+  function openSavedFacebookGroup(id) {
+    const group = loadFacebookGroups().find(g => g.id === id);
+    if (!group) return;
+    window.open(group.url, "_blank");
+  }
+
+
+  function deleteFacebookGroup(id) {
+    const groups = loadFacebookGroups().filter(g => g.id !== id);
+    saveFacebookGroups(groups);
+    renderSavedFacebookGroups(currentProducts[affiliateProductIndex] || currentProducts[0] || {});
+    showToast("Grupo removido.");
+  }
+
+
   function facebookGroupSearches(product) {
     const title = String(product.title || "").trim();
-    const words = title
-      .replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, " ")
-      .split(/\s+/)
+    const words = title.replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, " ").split(/\s+/)
       .filter(w => w.length >= 3);
 
-    const stop = new Set([
-      "kit","com","para","por","uma","um","de","da","do","das","dos",
-      "novo","nova","original","oficial","mercado","livre","unidade"
-    ]);
-
+    const stop = new Set(["kit","com","para","por","uma","um","de","da","do","das","dos","novo","nova","original","oficial","mercado","livre","unidade"]);
     const keywords = words.filter(w => !stop.has(w.toLowerCase())).slice(0, 4).join(" ");
-    const searches = [];
 
-    if (keywords) searches.push({
-      label: "Grupos sobre " + keywords,
-      query: keywords + " grupos"
-    });
-
-    searches.push(
+    return [
       { label: "Ofertas e promoções", query: "ofertas promoções achadinhos " + keywords },
       { label: "Ofertas Mercado Livre", query: "Mercado Livre ofertas promoções " + keywords },
       { label: "Achadinhos e cupons", query: "achadinhos cupons ofertas " + keywords }
-    );
-
-    return searches.filter((item, i, arr) =>
-      arr.findIndex(x => x.label === item.label) === i
-    ).slice(0, 4);
+    ];
   }
 
 
@@ -2417,8 +2631,8 @@
 
     const searches = facebookGroupSearches(product);
 
-    document.getElementById("facebookGroupsProduct").textContent =
-      product.title || "Produto";
+    document.getElementById("facebookGroupsProduct").textContent = product.title || "Produto";
+    renderSavedFacebookGroups(product);
 
     document.getElementById("facebookGroupsList").innerHTML =
       searches.map(item =>
@@ -2439,10 +2653,9 @@
 
 
   async function copyFacebookSearches() {
-    const product = currentProducts.find((p, i) => {
-      const el = document.getElementById("facebookGroupsProduct");
-      return el && el.textContent === (p.title || "Produto");
-    });
+    const product = currentProducts[affiliateProductIndex] || currentProducts.find(p =>
+      (p.title || "Produto") === document.getElementById("facebookGroupsProduct").textContent
+    );
 
     if (!product) {
       showToast("Abra os grupos de um produto primeiro.");
@@ -2451,8 +2664,7 @@
 
     const searches = facebookGroupSearches(product);
     const text = searches.map((item, i) =>
-      (i + 1) + ". " + item.label + "\n" +
-      "https://www.facebook.com/search/groups/?q=" + encodeURIComponent(item.query)
+      (i + 1) + ". " + item.label + "\nhttps://www.facebook.com/search/groups/?q=" + encodeURIComponent(item.query)
     ).join("\n\n");
 
     try {
@@ -2462,6 +2674,9 @@
       showToast("Não foi possível copiar.");
     }
   }
+
+
+
 
 
   // POTENCIAL DE CONTEÚDO / VIRALIZAÇÃO
