@@ -3550,7 +3550,17 @@ ${link}
       connectButton.textContent = "🔄 RECONECTAR FACEBOOK";
 
       if (!Array.isArray(data.pages) || !data.pages.length) {
-        status.textContent = "Conectado, mas nenhuma Página foi encontrada.";
+        const granted = Array.isArray(data.debug?.permissions)
+          ? data.debug.permissions
+              .filter(item => item.status === "granted")
+              .map(item => item.permission)
+          : [];
+
+        status.textContent = granted.length
+          ? "Conectado, mas nenhuma Página foi encontrada. Permissões: " + granted.join(", ")
+          : "Conectado, mas nenhuma Página foi encontrada. Nenhuma permissão do Facebook foi retornada.";
+
+        console.log("Facebook diagnóstico:", data.debug || data);
         select.style.display = "none";
         topButton.style.display = "none";
         return;
