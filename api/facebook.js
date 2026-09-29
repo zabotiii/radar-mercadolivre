@@ -79,7 +79,7 @@ module.exports = async (req, res) => {
     }
 
     if (action === "pages") {
-      const fb = await session(req, res);
+      const fb = dec(cookies(req).fb_session || "");
       if (!fb?.user_access_token) {
         return res.status(401).json({ connected: false, pages: [] });
       }
