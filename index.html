@@ -694,8 +694,8 @@
       </div>
 
       <div class="affiliate-help">
-        Cole aqui seu link de afiliado gerado oficialmente
-        pela Central/Gerador de Links do Mercado Livre.
+        Cole aqui o link de afiliado específico da oferta
+        gerado oficialmente pelo Mercado Livre.
       </div>
 
       <div class="affiliate-row">
@@ -753,49 +753,49 @@
 
       <button
         class="category-button active"
-        onclick="selectDailyCategory(this, 'Todas')"
+        onclick="selectDailyCategory(this, 'todas')"
       >
         🔥 Todas
       </button>
 
       <button
         class="category-button"
-        onclick="selectDailyCategory(this, '📱 Celulares')"
+        onclick="selectDailyCategory(this, 'celulares')"
       >
         📱 Celulares
       </button>
 
       <button
         class="category-button"
-        onclick="selectDailyCategory(this, '🎧 Eletrônicos')"
+        onclick="selectDailyCategory(this, 'eletronicos')"
       >
         🎧 Eletrônicos
       </button>
 
       <button
         class="category-button"
-        onclick="selectDailyCategory(this, '🏠 Casa')"
+        onclick="selectDailyCategory(this, 'casa')"
       >
         🏠 Casa
       </button>
 
       <button
         class="category-button"
-        onclick="selectDailyCategory(this, '💻 Informática')"
+        onclick="selectDailyCategory(this, 'informatica')"
       >
         💻 Informática
       </button>
 
       <button
         class="category-button"
-        onclick="selectDailyCategory(this, '🎮 Games')"
+        onclick="selectDailyCategory(this, 'games')"
       >
         🎮 Games
       </button>
 
       <button
         class="category-button"
-        onclick="selectDailyCategory(this, '👕 Moda')"
+        onclick="selectDailyCategory(this, 'moda')"
       >
         👕 Moda
       </button>
@@ -865,7 +865,7 @@
 
   let affiliateLink = "";
 
-  let selectedDailyCategory = "Todas";
+  let selectedDailyCategory = "todas";
 
 
   // =========================================================
@@ -1655,12 +1655,14 @@
 
       `;
 
-    } else {
+    } else if (
+      product.mais_vendido
+    ) {
 
       badges += `
 
         <span class="tag">
-          Sem anúncio vencedor
+          🔥 Mais vendido
         </span>
 
       `;
@@ -1729,7 +1731,9 @@
           class="product-image"
           src="${escapeHtml(image)}"
           alt="${escapeHtml(
-            product.title
+            product.title ||
+            product.titulo ||
+            "Produto Mercado Livre"
           )}"
           loading="lazy"
         >
