@@ -38,7 +38,7 @@ async function mlFetch(path, token) {
       ok: false,
       status: 0,
       data: null,
-      error: error.message
+      error: error.message || String(error)
     };
   }
 }
@@ -63,18 +63,31 @@ module.exports = async function handler(req, res) {
     const token =
       sessao.access_token;
 
-    /*
-      Primeiro testamos diretamente
-      uma categoria folha conhecida.
-    */
-
     const categorias = [
-      "MLB1051",
-      "MLB1000",
-      "MLB1574",
-      "MLB1648",
-      "MLB1144",
-      "MLB1430"
+      {
+        nome: "Celulares",
+        id: "MLB1051"
+      },
+      {
+        nome: "Eletrônicos",
+        id: "MLB1000"
+      },
+      {
+        nome: "Casa",
+        id: "MLB1574"
+      },
+      {
+        nome: "Informática",
+        id: "MLB1648"
+      },
+      {
+        nome: "Games",
+        id: "MLB1144"
+      },
+      {
+        nome: "Moda",
+        id: "MLB1430"
+      }
     ];
 
     const resultados = [];
@@ -84,198 +97,294 @@ module.exports = async function handler(req, res) {
       of categorias
     ) {
 
-      const r =
+      const highlights =
         await mlFetch(
-          `/highlights/MLB/category/${categoria}`,
+          `/highlights/MLB/category/${categoria.id}`,
           token
         );
 
-      const content =
-        r.ok &&
-        r.data &&
-        Array.isArray(
-          r.data.content
-        )
-          ? r.data.content
-          : [];
-
-      const tipos = {};
-
-      for (
-        const item
-        of content
+      if (
+        !highlights.ok ||
+        !highlights.data
       ) {
 
-        const tipo =
-          item.type ||
-          "SEM_TIPO";
+        resultados.push({
+          categoria:
+            categoria.nome,
 
-        tipos[tipo] =
-          (tipos[tipo] || 0) + 1;
+          erro:
+            highlights.data ||
+            highlights.error ||
+            "Erro highlights"
+        });
+
+        continue;
+      }
+
+      const content =
+        Array.isArray(
+          highlights.data.content
+        )
+          ? highlights.data.content
+          : [];
+
+      const produtos =
+        content.filter(
+          x =>
+            x &&
+            x.type === "PRODUCT" &&
+            x.id
+        );
+
+      const encontrados = [];
+
+      /*
+        Testa no máximo 10 PRODUCTs
+        por categoria.
+      */
+
+      for (
+        const destaque
+        of produtos.slice(0, 10)
+      ) {
+
+        const product =
+          await mlFetch(
+            `/products/${encodeURIComponent(destaque.id)}`,
+            token
+          );
+
+        if (
+          !product.ok ||
+          !product.data
+        ) {
+          continue;
+        }
+
+        const dados =
+          product.data;
+
+        /*
+          Primeiro testa o próprio produto.
+        */
+
+        if (
+          dados.buy_box_winner &&
+          dados.buy_box_winner.item_id
+        ) {
+
+          encontrados.push({
+
+            origem:
+              "PRODUCT_DIRETO",
+
+            product_id:
+              dados.id,
+
+            position:
+              destaque.position,
+
+            nome:
+              dados.name,
+
+            item_id:
+              dados.buy_box_winner.item_id,
+
+            seller_id:
+              dados.buy_box_winner.seller_id,
+
+            preco:
+              dados.buy_box_winner.price,
+
+            original_price:
+              dados.buy_box_winner.original_price,
+
+            shipping:
+              dados.buy_box_winner.shipping || null
+
+          });
+
+          continue;
+        }
+
+        /*
+          Agora testa os filhos.
+        */
+
+        const children =
+          Array.isArray(
+            dados.children_ids
+          )
+            ? dados.children_ids
+            : [];
+
+        if (
+          children.length === 0
+        ) {
+          encontrados.push({
+
+            origem:
+              "SEM_FILHOS",
+
+            product_id:
+              dados.id,
+
+            position:
+              destaque.position,
+
+            nome:
+              dados.name,
+
+            quantidade_filhos:
+              0,
+
+            buy_box_winner:
+              null
+
+          });
+
+          continue;
+        }
+
+        /*
+          Limita a 10 filhos por produto.
+        */
+
+        const filhos =
+          children.slice(
+            0,
+            10
+          );
+
+        for (
+          const childId
+          of filhos
+        ) {
+
+          const child =
+            await mlFetch(
+              `/products/${encodeURIComponent(childId)}`,
+              token
+            );
+
+          if (
+            !child.ok ||
+            !child.data
+          ) {
+            continue;
+          }
+
+          const childData =
+            child.data;
+
+          if (
+            childData.buy_box_winner &&
+            childData.buy_box_winner.item_id
+          ) {
+
+            encontrados.push({
+
+              origem:
+                "PRODUCT_FILHO",
+
+              product_id:
+                childData.id,
+
+              product_pai:
+                dados.id,
+
+              position:
+                destaque.position,
+
+              nome:
+                childData.name,
+
+              item_id:
+                childData.buy_box_winner.item_id,
+
+              seller_id:
+                childData.buy_box_winner.seller_id,
+
+              preco:
+                childData.buy_box_winner.price,
+
+              original_price:
+                childData.buy_box_winner.original_price,
+
+              shipping:
+                childData.buy_box_winner.shipping ||
+                null
+
+            });
+
+          }
+
+        }
+
       }
 
       resultados.push({
 
-        categoria,
+        categoria:
+          categoria.nome,
 
-        status:
-          r.status,
+        categoria_id:
+          categoria.id,
 
-        ok:
-          r.ok,
+        quantidade_products:
+          produtos.length,
 
-        quantidade:
-          content.length,
+        encontrados:
+          encontrados.length,
 
-        tipos,
-
-        primeiros:
-          content.slice(
-            0,
-            20
-          )
+        resultados:
+          encontrados
 
       });
+
     }
 
     /*
-      Também testa diretamente alguns
-      PRODUCT IDs encontrados.
+      Junta todos os vencedores.
     */
 
-    const products = [];
+    const vencedores =
+      [];
+
+    const ids =
+      new Set();
 
     for (
-      const resultado
+      const categoria
       of resultados
     ) {
 
-      const lista =
-        resultado.primeiros ||
-        [];
-
-      const productIds =
-        lista
-          .filter(
-            x =>
-              x.type ===
-              "PRODUCT"
-          )
-          .slice(
-            0,
-            3
-          );
-
       for (
-        const produto
-        of productIds
+        const item
+        of (
+          categoria.resultados ||
+          []
+        )
       ) {
 
-        const r =
-          await mlFetch(
-            `/products/${encodeURIComponent(produto.id)}`,
-            token
-          );
-
-        products.push({
-
-          id:
-            produto.id,
-
-          status:
-            r.status,
-
-          ok:
-            r.ok,
-
-          nome:
-            r.data &&
-            r.data.name
-              ? r.data.name
-              : null,
-
-          buy_box_winner:
-            r.data &&
-            r.data.buy_box_winner
-              ? {
-                  item_id:
-                    r.data
-                      .buy_box_winner
-                      .item_id ||
-                    null,
-
-                  seller_id:
-                    r.data
-                      .buy_box_winner
-                      .seller_id ||
-                    null,
-
-                  price:
-                    r.data
-                      .buy_box_winner
-                      .price ||
-                    null
-                }
-              : null
-
-        });
-      }
-    }
-
-    /*
-      USER PRODUCTS
-    */
-
-    const userProducts = [];
-
-    for (
-      const resultado
-      of resultados
-    ) {
-
-      const lista =
-        resultado.primeiros ||
-        [];
-
-      const ups =
-        lista
-          .filter(
-            x =>
-              x.type ===
-              "USER_PRODUCT"
+        if (
+          item.item_id &&
+          !ids.has(
+            item.item_id
           )
-          .slice(
-            0,
-            3
+        ) {
+
+          ids.add(
+            item.item_id
           );
 
-      for (
-        const up
-        of ups
-      ) {
-
-        const r =
-          await mlFetch(
-            `/user-products/${encodeURIComponent(up.id)}`,
-            token
+          vencedores.push(
+            item
           );
+        }
 
-        userProducts.push({
-
-          id:
-            up.id,
-
-          status:
-            r.status,
-
-          ok:
-            r.ok,
-
-          resposta:
-            r.data
-
-        });
       }
+
     }
 
     return json(
@@ -284,30 +393,51 @@ module.exports = async function handler(req, res) {
       {
 
         diagnostico:
-          "HIGHLIGHTS COMPLETO",
+          "TESTE PRODUCT FILHOS",
+
+        quantidade_vencedores:
+          vencedores.length,
+
+        vencedores:
+
+          vencedores.slice(
+            0,
+            50
+          ),
 
         categorias:
           resultados,
 
-        products,
+        conclusao:
 
-        userProducts
+          vencedores.length > 0
+
+            ? "ENCONTRAMOS ITENS ATRAVES DOS PRODUCTS OU FILHOS"
+
+            : "NENHUM PRODUCT OU FILHO POSSUI BUY_BOX_WINNER"
 
       }
     );
 
   } catch (error) {
 
+    console.error(
+      "ERRO DIAGNOSTICO:",
+      error
+    );
+
     return json(
       res,
       500,
       {
+
         diagnostico:
           "ERRO",
 
         mensagem:
           error.message ||
           String(error)
+
       }
     );
   }
