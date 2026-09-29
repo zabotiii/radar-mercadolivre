@@ -413,11 +413,11 @@ async function publicProductPage(productId) {
     let originalPrice =
       toNumber(
         firstMatch(html, [
-          /"original_price"\s*:\s*"?(\\d+(?:\.\d+)?)"?/i,
-          /"originalPrice"\s*:\s*"?(\\d+(?:\.\d+)?)"?/i,
-          /"regular_amount"\s*:\s*"?(\\d+(?:\.\d+)?)"?/i,
-          /"regularAmount"\s*:\s*"?(\\d+(?:\.\d+)?)"?/i,
-          /"list_price"\s*:\s*"?(\\d+(?:\.\d+)?)"?/i
+          /"original_price"\s*:\s*"?([0-9]+(?:\.\d+)?)"?/i,
+          /"originalPrice"\s*:\s*"?([0-9]+(?:\.\d+)?)"?/i,
+          /"regular_amount"\s*:\s*"?([0-9]+(?:\.\d+)?)"?/i,
+          /"regularAmount"\s*:\s*"?([0-9]+(?:\.\d+)?)"?/i,
+          /"list_price"\s*:\s*"?([0-9]+(?:\.\d+)?)"?/i
         ])
       );
 
@@ -441,7 +441,7 @@ async function publicProductPage(productId) {
     let discount =
       toNumber(
         firstMatch(html, [
-          /"(?:discount|discount_percentage|discountPercentage)"\s*:\s*"?(\\d+(?:\.\d+)?)"?/i,
+          /"(?:discount|discount_percentage|discountPercentage)"\s*:\s*"?([0-9]+(?:\.\d+)?)"?/i,
           /(?:^|\s)(\d{1,2})\s*%\\s*OFF(?:\s|<|$)/i
         ])
       );
