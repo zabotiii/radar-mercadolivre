@@ -575,6 +575,25 @@
       margin-top: 3px;
     }
 
+    .commission-box {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 9px;
+      background: #e9f8ee;
+      color: #147a35;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .commission-box small {
+      display: block;
+      margin-top: 2px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #4f6b57;
+    }
+
     .price-range {
       font-size: 13px;
       color: #666;
@@ -2105,6 +2124,35 @@
     const viralScore = calculateViralScore(product);
 
 
+    const commissionValue =
+      typeof product.affiliate_commission_estimate === "number"
+        ? product.affiliate_commission_estimate
+        : null;
+
+    const commissionRate =
+      typeof product.affiliate_commission_label === "string"
+        ? product.affiliate_commission_label
+        : null;
+
+    const commissionBasePrice =
+      typeof product.price === "number"
+        ? product.price
+        : typeof product.price_min === "number"
+          ? product.price_min
+          : null;
+
+    const commissionHtml =
+      commissionValue !== null && commissionRate
+        ? (
+          '<div class="commission-box">' +
+            '💰 Você ganha: ' + formatMoney(commissionValue) + ' por venda' +
+            '<small>Comissão padrão estimada de ' + escapeHtml(commissionRate) +
+            ' sobre ' + formatMoney(commissionBasePrice) +
+            ' • sem Ganhos Extras</small>' +
+          '</div>'
+        )
+        : "";
+
     let priceHtml = "";
 
 
@@ -2286,6 +2334,8 @@
 
 
         ${priceHtml}
+
+        ${commissionHtml}
 
 
         <div class="info-list">
