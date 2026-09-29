@@ -36,19 +36,40 @@ function decodeHtml(s) {
     .replace(/&gt;/g, ">");
 }
 
-function parseBing(body) {
+function parseSearchResults(body) {
   const results = [];
-  const re = /<li[^>]*class="[^"]*b_algo[^"]*"[^>]*>[\s\S]*?<h2[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?(?:<p[^>]*>([\s\S]*?)<\/p>)?[\s\S]*?<\/li>/gi;
+
+  // Bing RSS costuma entregar o link final diretamente e é mais estável
+  // que depender da estrutura HTML da página de resultados.
+  const rssRe = /<item>[\s\S]*?<title>([\s\S]*?)<\/title>[\s\S]*?<link>(https?:\/\/[^<]+)<\/link>[\s\S]*?<description>([\s\S]*?)<\/description>[\s\S]*?<\/item>/gi;
   let m;
 
-  while ((m = re.exec(body)) && results.length < 10) {
-    const url = decodeHtml(m[1]);
+  while ((m = rssRe.exec(body)) && results.length < 10) {
+    const url = decodeHtml(m[2]).trim();
+    const title = decodeHtml(m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+    const snippet = decodeHtml(m[3].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+
+    if (/^https?:\/\/(www\.)?facebook\.com\/groups\//i.test(url)) {
+      results.push({ name: title, url, snippet });
+    }
+  }
+
+  if (results.length) return results;
+
+  // Fallback para HTML do Bing, aceitando pequenas mudanças de estrutura.
+  const linkRe = /<a[^>]+href="(https?:\/\/[^"]*facebook\.com\/groups\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
+
+  while ((m = linkRe.exec(body)) && results.length < 10) {
+    const url = decodeHtml(m[1]).replace(/&amp;/g, "&");
     const title = decodeHtml(m[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
-    const snippet = decodeHtml((m[3] || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
 
-    if (!/^https?:\/\/(www\.)?facebook\.com\/groups\//i.test(url)) continue;
-
-    results.push({ name: title, url, snippet });
+    if (!results.some(x => x.url === url)) {
+      results.push({
+        name: title || "Grupo Facebook",
+        url,
+        snippet: "Grupo público encontrado na busca"
+      });
+    }
   }
 
   return results;
@@ -65,13 +86,14 @@ module.exports = async (req, res) => {
     const queries = [
       q + " ofertas promoções",
       q + " achadinhos",
-      q + " grupo"
+      q + " grupo facebook",
+      q + " promoções facebook"
     ];
 
     const all = [];
 
     for (const term of queries) {
-      const url = "https://www.bing.com/search?q=" +
+      const url = "https://www.bing.com/search?format=rss&q=" +
         encodeURIComponent("site:facebook.com/groups " + term) +
         "&count=10";
 
@@ -79,7 +101,7 @@ module.exports = async (req, res) => {
 
       if (response.status !== 200) continue;
 
-      all.push(...parseBing(response.body));
+      all.push(...parseSearchResults(response.body));
     }
 
     const unique = [];
