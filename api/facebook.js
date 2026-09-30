@@ -64,7 +64,8 @@ module.exports = async (req, res) => {
       const scopes = [
         "pages_show_list",
         "pages_read_engagement",
-        "pages_manage_posts"
+        "pages_manage_posts",
+        "business_management"
       ].join(",");
 
       const url =
