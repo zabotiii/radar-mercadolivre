@@ -125,9 +125,16 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // Termos genéricos podem atrapalhar a relevância da busca da Shopee.
+    // Quando houver uma marca/modelo junto da categoria, priorizamos o termo específico.
+    const searchTerm = q
+      .replace(/\\b(fraldas?|descartaveis?|descartáveis|infantis?|para|beb[eê])\\b/gi, " ")
+      .replace(/\\s+/g, " ")
+      .trim() || q;
+
     const query = `{
       productOfferV2(
-        keyword: ${JSON.stringify(q)},
+        keyword: ${JSON.stringify(searchTerm)},
         page: 1,
         sortType: 2,
         limit: 20
@@ -163,9 +170,22 @@ module.exports = async function handler(req, res) {
       ? data.data.productOfferV2.nodes
       : [];
 
-    const results = nodes
+    const normalized = nodes
       .map(normalizeOffer)
       .filter(item => item.title && item.price !== null);
+
+    // Se a busca contém uma marca específica (ex.: Pampers), não mostramos
+    // resultados de outras marcas/categorias que a Shopee eventualmente misture.
+    const specificTerms = searchTerm
+      .toLocaleLowerCase("pt-BR")
+      .split(/\\s+/)
+      .filter(term => term.length >= 4);
+    const results = specificTerms.length
+      ? normalized.filter(item => {
+          const title = item.title.toLocaleLowerCase("pt-BR");
+          return specificTerms.some(term => title.includes(term));
+        })
+      : normalized;
 
     return json(res, 200, {
       configured: true,
