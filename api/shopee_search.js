@@ -125,18 +125,38 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const safeKeyword = q.replace(/\\\\/g, "\\\\\\\\").replace(/"/g, '\\"');
-
-    const query = "{\\n" +
-      "  productOfferV2(keyword: \\"" + safeKeyword + "\\", page: 1, sortType: 2, limit: 20) {\\n" +
-      "    nodes {\\n" +
-      "      itemId commissionRate sellerCommissionRate shopeeCommissionRate commission sales\\n" +
-      "      priceMax priceMin productCatIds ratingStar priceDiscountRate imageUrl productName\\n" +
-      "      shopId shopName shopType productLink offerLink\\n" +
-      "    }\\n" +
-      "    pageInfo { hasNextPage page }\\n" +
-      "  }\\n" +
-      "}";
+    const query = `{
+      productOfferV2(
+        keyword: ${JSON.stringify(q)},
+        page: 1,
+        sortType: 2,
+        limit: 20
+      ) {
+        nodes {
+          itemId
+          commissionRate
+          sellerCommissionRate
+          shopeeCommissionRate
+          commission
+          sales
+          priceMax
+          priceMin
+          ratingStar
+          priceDiscountRate
+          imageUrl
+          productName
+          shopId
+          shopName
+          shopType
+          productLink
+          offerLink
+        }
+        pageInfo {
+          hasNextPage
+          page
+        }
+      }
+    }`;
 
     const data = await shopeeGraphQL(query);
     const nodes = Array.isArray(data?.data?.productOfferV2?.nodes)
