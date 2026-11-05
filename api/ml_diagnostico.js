@@ -9,10 +9,7 @@ function json(res, status, data) {
 async function mlFetch(path, token) {
   try {
     const r = await fetch("https://api.mercadolibre.com" + path, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json"
-      }
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
     });
     let data = null;
     try { data = await r.json(); } catch {}
@@ -24,57 +21,36 @@ async function mlFetch(path, token) {
 
 module.exports = async function handler(req, res) {
   try {
-    const sessao = await session(req, res);
-    if (!sessao || !sessao.access_token) {
-      return json(res, 401, { erro: "Mercado Livre não conectado." });
-    }
+    const sess = await session(req, res);
+    if (!sess?.access_token) return json(res, 401, { erro: "Mercado Livre não conectado." });
 
-    const token = sessao.access_token;
-    const categoryId = "MLB1384";
+    const q = String(req.query?.q || "fralda Pampers").trim();
+    const search = await mlFetch(
+      `/products/search?status=active&site_id=MLB&q=${encodeURIComponent(q)}&limit=10`,
+      sess.access_token
+    );
 
-    const [category, highlights] = await Promise.all([
-      mlFetch(`/categories/${categoryId}`, token),
-      mlFetch(`/highlights/MLB/category/${categoryId}`, token)
-    ]);
-
-    const children = Array.isArray(category.data?.children_categories)
-      ? category.data.children_categories.map(c => ({ id: c.id, name: c.name }))
-      : [];
-
-    const candidates = Array.isArray(highlights.data?.content)
-      ? highlights.data.content.filter(x => x && x.type === "PRODUCT" && x.id).slice(0, 3)
-      : [];
-
-    const testedProducts = await Promise.all(candidates.map(async candidate => {
-      const [catalog, relation] = await Promise.all([
-        mlFetch(`/products/${encodeURIComponent(candidate.id)}`, token),
-        mlFetch(`/products/${encodeURIComponent(candidate.id)}/items?limit=10`, token)
-      ]);
-
-      const rawItems = Array.isArray(relation.data?.results)
+    const products = Array.isArray(search.data?.results) ? search.data.results : [];
+    const tested = await Promise.all(products.slice(0, 3).map(async p => {
+      const relation = await mlFetch(
+        `/products/${encodeURIComponent(p.id)}/items?limit=10`,
+        sess.access_token
+      );
+      const items = Array.isArray(relation.data?.results)
         ? relation.data.results
-        : Array.isArray(relation.data)
-          ? relation.data
-          : [];
-
+        : Array.isArray(relation.data) ? relation.data : [];
       return {
-        product_id: candidate.id,
-        catalog: {
-          status: catalog.status,
-          ok: catalog.ok,
-          name: catalog.data?.name || null,
-          image: catalog.data?.pictures?.[0]?.secure_url || catalog.data?.pictures?.[0]?.url || null
-        },
+        product_id: p.id,
+        nome_catalogo: p.name || null,
+        status_catalogo: p.status || null,
+        domain_id: p.domain_id || null,
         anuncios: {
           status: relation.status,
           ok: relation.ok,
-          total: rawItems.length,
-          amostra: rawItems.slice(0, 5).map(item => ({
-            id: item.item_id || item.id || null,
-            title: item.title || null,
-            price: item.price ?? item.sale_price ?? null,
-            original_price: item.original_price ?? null,
-            permalink: item.permalink || null
+          total: items.length,
+          amostra: items.slice(0, 5).map(x => ({
+            id: x.item_id || x.id || null,
+            preco: x.price ?? x.sale_price ?? null
           })),
           erro: relation.ok ? undefined : relation.data
         }
@@ -82,20 +58,16 @@ module.exports = async function handler(req, res) {
     }));
 
     return json(res, 200, {
-      diagnostico: "TESTE DE ANÚNCIOS REAIS - BEBÊS",
-      categoria: {
-        status: category.status,
-        ok: category.ok,
-        id: category.data?.id,
-        nome: category.data?.name,
-        filhos: children
+      diagnostico: "TESTE BUSCA DE CATÁLOGO POR PALAVRA-CHAVE",
+      termo: q,
+      busca_catalogo: {
+        status: search.status,
+        ok: search.ok,
+        total: search.data?.paging?.total ?? products.length,
+        produtos: products.slice(0, 10).map(p => ({ id: p.id, nome: p.name, status: p.status })),
+        erro: search.ok ? undefined : search.data
       },
-      destaques: {
-        status: highlights.status,
-        ok: highlights.ok,
-        total_catalogo: Array.isArray(highlights.data?.content) ? highlights.data.content.length : 0,
-        produtos_testados: testedProducts
-      }
+      anuncios_testados: tested
     });
   } catch (e) {
     return json(res, 500, { diagnostico: "ERRO", mensagem: e.message });
