@@ -1928,7 +1928,12 @@
 
   function getAffiliateLink(product) {
     const key = getProductKey(product);
-    return key ? (affiliateLinksByProduct[key] || "") : "";
+    if (!product) return "";
+    // Shopee e Amazon já retornam o link rastreado pela API.
+    // Mercado Livre continua usando o link salvo pelo Linkbuilder oficial.
+    return key
+      ? (affiliateLinksByProduct[key] || product.affiliate_link || product.offerLink || "")
+      : "";
   }
 
 
@@ -3303,18 +3308,26 @@ ${product.free_shipping ? "🚚 Frete grátis" : ""}
 
     const link = getAffiliateLink(product);
 
-    const post = `🔥 OFERTA DO DIA NO MERCADO LIVRE!
+    const storeName = product.store === "shopee"
+      ? "SHOPEE"
+      : product.store === "amazon"
+        ? "AMAZON"
+        : "MERCADO LIVRE";
+
+    const post = `🍼 ACHADINHO RADAR BABY!
 
 🛒 ${product.title}
 
 💰 ${priceText}${discountText}${shippingText}
 
-👉 Veja a oferta:
+🏷️ Loja: ${storeName}
+
+👉 Confira a oferta:
 ${link}
 
-⚡ Corre para conferir! O preço e a disponibilidade podem mudar.
+⚡ Preço e disponibilidade podem mudar sem aviso.
 
-#MercadoLivre #Oferta #Promoção #Achadinhos #Ofertas`.trim();
+#RadarBaby #OfertasBaby #AchadinhosInfantis #Bebê #Infantil #Oferta`.trim();
 
     return post;
   }
