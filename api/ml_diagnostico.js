@@ -32,47 +32,69 @@ module.exports = async function handler(req, res) {
     const token = sessao.access_token;
     const categoryId = "MLB1384";
 
-    const [category, highlights, bulk] = await Promise.all([
+    const [category, highlights] = await Promise.all([
       mlFetch(`/categories/${categoryId}`, token),
-      mlFetch(`/highlights/MLB/category/${categoryId}`, token),
-      mlFetch(
-        "/items/bulk?ids=MLB4002919471,MLB5977782288,MLB4039471005,MLB4592320910,MLB4049279695&attributes=body.id,body.title,body.price,body.original_price,body.thumbnail,body.permalink,body.category_id",
-        token
-      )
+      mlFetch(`/highlights/MLB/category/${categoryId}`, token)
     ]);
 
     const children = Array.isArray(category.data?.children_categories)
       ? category.data.children_categories.map(c => ({ id: c.id, name: c.name }))
       : [];
 
-    const highlightsContent = Array.isArray(highlights.data?.content)
-      ? highlights.data.content.slice(0, 10).map(x => ({
-          id: x.id,
-          type: x.type,
-          position: x.position
-        }))
+    const candidates = Array.isArray(highlights.data?.content)
+      ? highlights.data.content.filter(x => x && x.type === "PRODUCT" && x.id).slice(0, 3)
       : [];
 
+    const testedProducts = await Promise.all(candidates.map(async candidate => {
+      const [catalog, relation] = await Promise.all([
+        mlFetch(`/products/${encodeURIComponent(candidate.id)}`, token),
+        mlFetch(`/products/${encodeURIComponent(candidate.id)}/items?limit=10`, token)
+      ]);
+
+      const rawItems = Array.isArray(relation.data?.results)
+        ? relation.data.results
+        : Array.isArray(relation.data)
+          ? relation.data
+          : [];
+
+      return {
+        product_id: candidate.id,
+        catalog: {
+          status: catalog.status,
+          ok: catalog.ok,
+          name: catalog.data?.name || null,
+          image: catalog.data?.pictures?.[0]?.secure_url || catalog.data?.pictures?.[0]?.url || null
+        },
+        anuncios: {
+          status: relation.status,
+          ok: relation.ok,
+          total: rawItems.length,
+          amostra: rawItems.slice(0, 5).map(item => ({
+            id: item.item_id || item.id || null,
+            title: item.title || null,
+            price: item.price ?? item.sale_price ?? null,
+            original_price: item.original_price ?? null,
+            permalink: item.permalink || null
+          })),
+          erro: relation.ok ? undefined : relation.data
+        }
+      };
+    }));
+
     return json(res, 200, {
-      diagnostico: "MERCADO LIVRE - CATEGORIA BEBÊS",
+      diagnostico: "TESTE DE ANÚNCIOS REAIS - BEBÊS",
       categoria: {
         status: category.status,
         ok: category.ok,
         id: category.data?.id,
         nome: category.data?.name,
-        filhos: children,
-        erro: category.ok ? undefined : category.data
+        filhos: children
       },
       destaques: {
         status: highlights.status,
         ok: highlights.ok,
-        produtos: highlightsContent,
-        erro: highlights.ok ? undefined : highlights.data
-      },
-      teste_items_bulk: {
-        status: bulk.status,
-        ok: bulk.ok,
-        resposta: bulk.data
+        total_catalogo: Array.isArray(highlights.data?.content) ? highlights.data.content.length : 0,
+        produtos_testados: testedProducts
       }
     });
   } catch (e) {
