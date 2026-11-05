@@ -2204,7 +2204,7 @@
     }
     try {
       const parsed = new URL(link);
-      if (!/^https?:$/.test(parsed.protocol) || !/(amazon\\.|amzn\\.to)/i.test(parsed.hostname)) {
+      if (!/^https?:$/.test(parsed.protocol) || !/(amazon\.|amzn\.to)/i.test(parsed.hostname)) {
         showNotice("Use um link válido da Amazon."); return;
       }
       if (image && !/^https?:$/.test(new URL(image).protocol)) throw new Error("Imagem inválida");
