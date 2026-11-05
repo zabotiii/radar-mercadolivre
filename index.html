@@ -539,6 +539,23 @@
       justify-content: center;
     }
 
+    .store-origin-badge {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      z-index: 2;
+      padding: 7px 10px;
+      border-radius: 9px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .2px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.18);
+    }
+    .store-origin-badge.ml { background: #3483fa; }
+    .store-origin-badge.shopee { background: #ee4d2d; }
+    .store-origin-badge.amazon { background: #232f3e; }
+
     .product-image {
       width: 100%;
       height: 100%;
@@ -2300,7 +2317,7 @@
         else errors.push(result.reason?.message || "Uma das fontes não respondeu.");
       }
 
-      const manualProducts = loadManualProducts();
+      const manualProducts = selectedStores.amazon ? loadManualProducts() : [];
       const normalizedQuery = query.toLocaleLowerCase("pt-BR");
       allResults.push(...manualProducts.filter(product => {
         const title = String(product.title || "").toLocaleLowerCase("pt-BR");
@@ -2716,11 +2733,19 @@
         : "";
 
 
+    const storeKey = product.store || "mercado_livre";
+    const storeBadge = storeKey === "shopee"
+      ? '<span class="store-origin-badge shopee">🛍️ SHOPEE</span>'
+      : storeKey === "amazon"
+        ? '<span class="store-origin-badge amazon">📦 AMAZON</span>'
+        : '<span class="store-origin-badge ml">🔵 MERCADO LIVRE</span>';
+
     card.innerHTML = `
 
       <div class="image-area">
 
         ${discountBadge}
+        ${storeBadge}
 
         <div class="score-badge">
           Radar ${score}/100
