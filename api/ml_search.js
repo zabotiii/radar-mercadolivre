@@ -1,170 +1,143 @@
 const { session } = require("./lib");
 
-async function getCategoryName(categoryId, token) {
-  if (!categoryId) return null;
+const BABY_CATEGORY = "MLB1384";
+const CATEGORY_MAP = [
+  { test: /fralda|lenço|lenco|higiene|pomada|shampoo|toalha/, ids: ["MLB420375"] },
+  { test: /mamadeira|amament|papinha|leite|alimenta/, ids: ["MLB5360", "MLB39965"] },
+  { test: /carrinho|beb[eê] conforto|passeio/, ids: ["MLB420409"] },
+  { test: /berço|berco|quarto|sono/, ids: ["MLB420361"] },
+  { test: /maternidade|gestante|bolsa maternidade/, ids: ["MLB420295"] },
+  { test: /brinquedo|mordedor|chupeta/, ids: ["MLB1392", "MLB420293"] },
+  { test: /roupa|body|macacão|macacao|sapato/, ids: ["MLB1396"] }
+];
+
+function commissionRate(name) {
+  const n = String(name || "").toLowerCase();
+  if (/beleza|calçados|calcados|roupas|bolsas|esportes|fitness/.test(n)) return 0.16;
+  if (/celular|informática|informatica|eletrônicos|eletronicos|áudio|audio|vídeo|video|câmeras|cameras|eletrodomésticos|eletrodomesticos/.test(n)) return 0.05;
+  return n ? 0.12 : null;
+}
+
+async function mlFetch(path, token) {
   try {
-    const response = await fetch(
-      "https://api.mercadolibre.com/categories/" + encodeURIComponent(categoryId),
-      { headers: { Accept: "application/json" } }
-    );
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.name || null;
-  } catch {
-    return null;
+    const r = await fetch("https://api.mercadolibre.com" + path, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" }
+    });
+    let data = null;
+    try { data = await r.json(); } catch {}
+    return { ok: r.ok, status: r.status, data };
+  } catch (e) {
+    return { ok: false, status: 0, data: null, error: e.message };
   }
 }
 
-function affiliateCommissionRate(categoryName) {
-  const name = String(categoryName || "").toLowerCase();
-  if (/beleza|calçados|calcados|roupas|bolsas|esportes|fitness/.test(name)) return 0.16;
-  if (/celular|informática|informatica|eletrônicos|eletronicos|áudio|audio|vídeo|video|câmeras|cameras|eletrodomésticos|eletrodomesticos/.test(name)) return 0.05;
-  return name ? 0.12 : null;
+function arr(data) {
+  if (Array.isArray(data?.results)) return data.results;
+  if (Array.isArray(data)) return data;
+  return [];
 }
 
-function applyAffiliateCommission(product, categoryName) {
-  const rate = affiliateCommissionRate(categoryName);
-  const price = Number(product.price);
-  product.category_name = categoryName || null;
-  product.affiliate_commission_rate = rate;
-  product.affiliate_commission_estimate =
-    rate !== null && Number.isFinite(price) && price > 0
-      ? Math.round(price * rate * 100) / 100
-      : null;
-  product.affiliate_commission_label = rate !== null ? Math.round(rate * 100) + "%" : null;
-  return product;
+function matchesQuery(title, query) {
+  const words = query.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .split(/\s+/).filter(w => w.length > 2);
+  if (!words.length) return true;
+  const text = String(title || "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return words.every(word => text.includes(word));
 }
 
 module.exports = async function(req, res) {
   try {
-    if (req.method !== "GET") {
-      return res.status(405).json({ error: "Método não permitido." });
-    }
-
+    if (req.method !== "GET") return res.status(405).json({ error: "Método não permitido." });
     const sess = await session(req, res);
-    if (!sess) {
-      return res.status(401).json({ error: "Mercado Livre não conectado." });
-    }
+    if (!sess?.access_token) return res.status(401).json({ error: "Mercado Livre não conectado." });
 
     const q = String(req.query?.q || "").trim();
-    if (!q) {
-      return res.status(400).json({ error: "Digite um termo de busca." });
-    }
+    if (!q) return res.status(400).json({ error: "Digite um termo de busca." });
 
-    // Busca anúncios (itens), pois eles trazem preço e disponibilidade.
-    const searchUrl =
-      "https://api.mercadolibre.com/sites/MLB/search?q=" +
-      encodeURIComponent(q) +
-      "&limit=30";
-
-    const searchResponse = await fetch(searchUrl, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${sess.access_token}`
-      }
-    });
-
-    const searchText = await searchResponse.text();
-    let searchData = {};
-    try {
-      searchData = JSON.parse(searchText);
-    } catch {
-      return res.status(502).json({
-        error: "O Mercado Livre retornou uma resposta inválida.",
-        details: searchText.substring(0, 500)
+    // Tenta primeiro a busca tradicional. Se o endpoint responder 403,
+    // usa os destaques do catálogo de Bebês e resolve os anúncios reais.
+    const direct = await mlFetch(`/sites/MLB/search?q=${encodeURIComponent(q)}&limit=30`, sess.access_token);
+    if (direct.ok) {
+      const results = (direct.data?.results || []).map(item => {
+        const price = Number.isFinite(item.price) ? item.price : null;
+        const original = Number.isFinite(item.original_price) ? item.original_price : null;
+        const discount = price !== null && original > price ? Math.round((original-price)/original*100) : null;
+        const rate = commissionRate(item.category_id || "bebê");
+        return {
+          id:item.id, item_id:item.id, title:item.title || "Produto Mercado Livre",
+          permalink:item.permalink || `https://www.mercadolivre.com.br/p/${item.id}`,
+          image:item.thumbnail?.replace(/^http:/,"https:") || null, price, original_price:original,
+          discount, sold_quantity:item.sold_quantity ?? null, available_quantity:item.available_quantity ?? null,
+          free_shipping:Boolean(item.shipping?.free_shipping), seller_id:item.seller?.id || null,
+          condition:item.condition || "Novo", category_id:item.category_id || null,
+          affiliate_commission_rate:rate, affiliate_commission_estimate:rate && price ? Math.round(price*rate*100)/100 : null,
+          affiliate_commission_label:rate ? Math.round(rate*100)+"%" : null, score:0
+        };
       });
+      return res.status(200).json({ keywords:q, total:results.length, results });
     }
 
-    if (!searchResponse.ok) {
-      return res.status(searchResponse.status).json({
-        error: searchData.message || searchData.error || "Erro na busca do Mercado Livre.",
-        details: searchData
-      });
+    if (direct.status !== 403) {
+      return res.status(direct.status || 502).json({ error:"Erro na busca do Mercado Livre.", details:direct.data });
     }
 
-    const rawProducts = Array.isArray(searchData.results) ? searchData.results : [];
-    const products = rawProducts.map(item => {
-      const price = typeof item.price === "number" ? item.price : null;
-      const originalPrice =
-        typeof item.original_price === "number" ? item.original_price : null;
-      let discount = null;
-
-      if (price !== null && originalPrice !== null && originalPrice > price && originalPrice > 0) {
-        discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+    const mapped = CATEGORY_MAP.find(x => x.test.test(q));
+    const categoryIds = mapped ? mapped.ids : [BABY_CATEGORY];
+    const catalogIds = new Set();
+    for (const categoryId of categoryIds) {
+      const highlights = await mlFetch(`/highlights/MLB/category/${categoryId}`, sess.access_token);
+      for (const entry of (highlights.data?.content || [])) {
+        if (entry?.type === "PRODUCT" && entry.id) catalogIds.add(entry.id);
       }
+    }
 
-      const soldQuantity =
-        typeof item.sold_quantity === "number" ? item.sold_quantity : null;
-      const availableQuantity =
-        typeof item.available_quantity === "number" ? item.available_quantity : null;
-      const freeShipping = Boolean(item.shipping && item.shipping.free_shipping === true);
+    const results = [];
+    for (const productId of [...catalogIds].slice(0, 8)) {
+      const [catalog, relation] = await Promise.all([
+        mlFetch(`/products/${encodeURIComponent(productId)}`, sess.access_token),
+        mlFetch(`/products/${encodeURIComponent(productId)}/items?limit=10`, sess.access_token)
+      ]);
+      if (!catalog.ok || !catalog.data) continue;
+      const catalogName = catalog.data.name || "";
+      if (!matchesQuery(catalogName, q)) continue;
 
-      let score = 0;
-      if (discount !== null) {
-        if (discount >= 50) score += 35;
-        else if (discount >= 40) score += 30;
-        else if (discount >= 30) score += 25;
-        else if (discount >= 20) score += 18;
-        else if (discount >= 10) score += 10;
+      const itemRefs = arr(relation.data).slice(0, 3);
+      for (const ref of itemRefs) {
+        const id = ref.item_id || ref.id;
+        if (!id) continue;
+        const detail = await mlFetch(`/items/${encodeURIComponent(id)}`, sess.access_token);
+        const item = detail.data;
+        if (!detail.ok || !item) continue;
+        const price = Number.isFinite(item.price) ? item.price : Number.isFinite(ref.price) ? ref.price : null;
+        const original = Number.isFinite(item.original_price) ? item.original_price : Number.isFinite(ref.original_price) ? ref.original_price : null;
+        const discount = price !== null && original !== null && original > price ? Math.round((original-price)/original*100) : null;
+        const rate = commissionRate(catalog.data.category_id || "bebê");
+        results.push({
+          id:item.id || id, item_id:item.id || id, product_id:productId,
+          title:item.title || catalogName,
+          permalink:item.permalink || `https://www.mercadolivre.com.br/p/${productId}`,
+          image:item.thumbnail?.replace(/^http:/,"https:") || catalog.data.pictures?.[0]?.secure_url || null,
+          price, original_price:original, discount,
+          sold_quantity:item.sold_quantity ?? null, available_quantity:item.available_quantity ?? null,
+          free_shipping:Boolean(item.shipping?.free_shipping), seller_id:item.seller_id || null,
+          condition:item.condition || "Novo", category_id:item.category_id || catalog.data.category_id || null,
+          category_name:catalog.data.category_id || null,
+          affiliate_commission_rate:rate,
+          affiliate_commission_estimate:rate && price ? Math.round(price*rate*100)/100 : null,
+          affiliate_commission_label:rate ? Math.round(rate*100)+"%" : null,
+          score:discount ? Math.min(100,20+discount) : 20
+        });
       }
-      score += 20;
-      if (freeShipping) score += 10;
-      if (availableQuantity !== null && availableQuantity > 0) score += 10;
-      if (soldQuantity !== null) {
-        if (soldQuantity >= 1000) score += 15;
-        else if (soldQuantity >= 500) score += 12;
-        else if (soldQuantity >= 100) score += 9;
-        else if (soldQuantity >= 50) score += 6;
-        else if (soldQuantity > 0) score += 3;
-      }
+    }
 
-      return {
-        id: item.id,
-        item_id: item.id,
-        title: item.title || "Produto Mercado Livre",
-        permalink: item.permalink || `https://www.mercadolivre.com.br/p/${item.id}`,
-        image: item.thumbnail ? item.thumbnail.replace(/^http:/, "https:") : null,
-        price,
-        price_min: null,
-        price_max: null,
-        original_price: originalPrice,
-        discount,
-        sold_quantity: soldQuantity,
-        available_quantity: availableQuantity,
-        free_shipping: freeShipping,
-        seller_id: item.seller && item.seller.id ? item.seller.id : null,
-        has_winner: true,
-        condition: item.condition || "Novo",
-        category_id: item.category_id || null,
-        category_name: null,
-        affiliate_commission_rate: null,
-        affiliate_commission_estimate: null,
-        affiliate_commission_label: null,
-        score: Math.min(score, 100)
-      };
-    });
-
-    await Promise.all(products.map(async product => {
-      const categoryName = await getCategoryName(product.category_id, sess.access_token);
-      applyAffiliateCommission(product, categoryName);
-    }));
-
-    products.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return (b.discount || 0) - (a.discount || 0);
-    });
-
+    results.sort((a,b) => (b.discount || 0)-(a.discount || 0) || (a.price || Infinity)-(b.price || Infinity));
     return res.status(200).json({
-      keywords: q,
-      total: products.length,
-      results: products
+      keywords:q, total:results.length, results,
+      source:"Mercado Livre baby catalog highlights fallback",
+      notice:results.length ? undefined : "O catálogo respondeu, mas não encontramos anúncios para todos os termos pesquisados. Tente uma palavra mais ampla."
     });
   } catch (error) {
     console.error("ERRO RADAR:", error);
-    return res.status(500).json({
-      error: "Erro interno no Radar.",
-      details: error.message
-    });
+    return res.status(500).json({ error:"Erro interno no Radar.", details:error.message });
   }
 };
