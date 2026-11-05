@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Radar MercadoLivre</title>
+  <title>Radar Baby | Ofertas para todas as fases</title>
 
   <style>
     * {
@@ -1328,6 +1328,18 @@
       .container{padding-left:12px;padding-right:12px}
     }
 
+    .brand-mark{
+      width:50px;height:50px;display:grid;place-items:center;
+      border-radius:15px;background:linear-gradient(135deg,#ffe0e8,#e4f6f1);
+      font-size:28px;box-shadow:0 0 0 2px rgba(255,176,0,.28),0 6px 18px rgba(0,0,0,.20);
+    }
+    .brand img{display:none}
+    .hero h1{
+      background:linear-gradient(90deg,#fff,#ffd5df,#a9e8d8);
+      -webkit-background-clip:text;background-clip:text;color:transparent;
+    }
+    .category-button.active{background:linear-gradient(135deg,#202126,#45334a);color:#ffd5df;border-color:#45334a}
+    .store-note{line-height:1.4}
   </style>
 </head>
 
@@ -1337,8 +1349,8 @@
   <div class="topbar-inner">
 
     <div class="brand">
-      <img src="/logo.png" alt="Radar MercadoLivre">
-      <span>Radar MercadoLivre</span>
+      <span class="brand-mark" aria-hidden="true">🧸</span>
+      <span>Radar Baby</span>
     </div>
 
     <div class="connection">
@@ -1374,12 +1386,12 @@
 
   <section class="hero">
 
-    <h1>🔥 Caçador de Promoções</h1>
+    <h1>🍼 Radar Baby</h1>
 
     <p>
-      Encontre oportunidades no Mercado Livre,
-      analise os produtos e prepare seu conteúdo
-      para divulgação como afiliado.
+      Ofertas selecionadas para gestantes, bebês e crianças.
+      Compare oportunidades no Mercado Livre, Shopee e Amazon
+      e prepare publicações para sua comunidade.
     </p>
 
   </section>
@@ -1394,7 +1406,7 @@
       <input
         id="searchInput"
         type="text"
-        placeholder="Ex.: air fryer, tênis, celular, cafeteira..."
+        placeholder="Ex.: fralda Pampers, carrinho, bebê conforto, brinquedo educativo..."
         autocomplete="off"
       >
 
@@ -1421,7 +1433,7 @@
         <input type="checkbox" id="storeAmazon" checked onchange="toggleStore('amazon', this.checked)">
         Amazon
       </label>
-      <span class="store-note">🟡 Shopee: aguardando liberação da Open API. 🟠 Amazon: aguardando credenciais da Creators API.</span>
+      <span class="store-note">As ofertas aparecem conforme o acesso e as credenciais de cada programa de afiliados.</span>
     </div>
 
 
@@ -1432,10 +1444,7 @@
       </div>
 
       <div class="affiliate-help">
-        Cada oferta terá seu próprio link de afiliado. No card do produto,
-        clique em <strong>GERAR LINK AFILIADO</strong>. O Radar abre a
-        Central de Afiliados oficial e copia o link do produto para você colar
-        no Gerador de Links do Mercado Livre.
+        Cada loja possui seu próprio programa de afiliados. O Radar organiza os produtos e utiliza os links disponibilizados pelas integrações; no Mercado Livre, a geração do link pode exigir o Linkbuilder oficial.
       </div>
 
       <a
@@ -1464,12 +1473,11 @@
       <div>
 
         <h2 class="daily-title">
-          🔥 PROMOÇÕES DO DIA
+          🧸 ACHADINHOS POR CATEGORIA
         </h2>
 
         <div class="daily-subtitle">
-          O Radar pesquisa automaticamente várias categorias
-          e organiza as oportunidades encontradas.
+          Escolha uma fase ou categoria e encontre produtos infantis nas três lojas.
         </div>
 
       </div>
@@ -1478,63 +1486,22 @@
         class="daily-button"
         onclick="loadDailyPromotions()"
       >
-        🚀 ENCONTRAR OFERTAS
+        🚀 BUSCAR ACHADINHOS
       </button>
 
     </div>
 
 
     <div class="category-row">
-
-      <button
-        class="category-button active"
-        onclick="selectDailyCategory(this, 'todas')"
-      >
-        🔥 Todas
-      </button>
-
-      <button
-        class="category-button"
-        onclick="selectDailyCategory(this, 'celulares')"
-      >
-        📱 Celulares
-      </button>
-
-      <button
-        class="category-button"
-        onclick="selectDailyCategory(this, 'eletronicos')"
-      >
-        🎧 Eletrônicos
-      </button>
-
-      <button
-        class="category-button"
-        onclick="selectDailyCategory(this, 'casa')"
-      >
-        🏠 Casa
-      </button>
-
-      <button
-        class="category-button"
-        onclick="selectDailyCategory(this, 'informatica')"
-      >
-        💻 Informática
-      </button>
-
-      <button
-        class="category-button"
-        onclick="selectDailyCategory(this, 'games')"
-      >
-        🎮 Games
-      </button>
-
-      <button
-        class="category-button"
-        onclick="selectDailyCategory(this, 'moda')"
-      >
-        👕 Moda
-      </button>
-
+      <button class="category-button active" onclick="selectDailyCategory(this, 'todas')">✨ Todas</button>
+      <button class="category-button" onclick="selectDailyCategory(this, 'maternidade')">🤰 Gestante e maternidade</button>
+      <button class="category-button" onclick="selectDailyCategory(this, 'fraldas')">🧷 Fraldas e higiene</button>
+      <button class="category-button" onclick="selectDailyCategory(this, 'alimentacao')">🍼 Alimentação</button>
+      <button class="category-button" onclick="selectDailyCategory(this, 'passeio')">🚼 Passeio e segurança</button>
+      <button class="category-button" onclick="selectDailyCategory(this, 'quarto')">🛏️ Quarto e sono</button>
+      <button class="category-button" onclick="selectDailyCategory(this, 'roupas')">👕 Roupas e calçados</button>
+      <button class="category-button" onclick="selectDailyCategory(this, 'brinquedos')">🧸 Brinquedos</button>
+      <button class="category-button" onclick="selectDailyCategory(this, 'escolar')">🎒 Infantil e escolar</button>
     </div>
 
 
@@ -1544,8 +1511,7 @@
 
 
     <div class="daily-note">
-      Os preços e dados dependem das informações disponibilizadas
-      pelo Mercado Livre no momento da consulta.
+      Os preços, estoques, descontos e links dependem das informações e permissões disponibilizadas por cada loja no momento da consulta.
     </div>
 
   </section>
@@ -1632,7 +1598,7 @@
 
 
   <div class="footer">
-    Radar MercadoLivre • Ferramenta de análise para afiliados
+    Radar Baby • Ofertas para gestantes, bebês e crianças
   </div>
 
 </main>
@@ -1814,6 +1780,19 @@
 <script>
 
   let currentProducts = [];
+
+  // Fontes selecionadas: as três ficam ativas por padrão.
+  const selectedStores = {
+    mercado_livre: true,
+    shopee: true,
+    amazon: true
+  };
+
+  function toggleStore(store, enabled) {
+    if (Object.prototype.hasOwnProperty.call(selectedStores, store)) {
+      selectedStores[store] = Boolean(enabled);
+    }
+  }
 
   let affiliateLinksByProduct = {};
 
@@ -2305,170 +2284,38 @@
   }
 
 
-  async function loadDailyPromotions(
-    category =
-      selectedDailyCategory
-  ) {
+  async function loadDailyPromotions(category = selectedDailyCategory) {
+    const categoryQueries = {
+      todas: "ofertas bebê infantil",
+      maternidade: "enxoval bebê gestante mala maternidade",
+      fraldas: "fraldas bebê lenços umedecidos higiene",
+      alimentacao: "mamadeira chupeta cadeirão alimentação bebê",
+      passeio: "carrinho bebê bebê conforto cadeirinha carro",
+      quarto: "berço colchão bebê cômoda quarto infantil",
+      roupas: "roupas bebê infantil body conjunto calçado",
+      brinquedos: "brinquedos educativos bebê infantil",
+      escolar: "mochila infantil material escolar lancheira"
+    };
 
+    selectedDailyCategory = category;
     dailyViewActive = true;
 
-    selectedDailyCategory =
-      category;
+    const query = categoryQueries[category] || categoryQueries.todas;
+    const input = document.getElementById("searchInput");
+    input.value = query;
 
+    await searchProducts();
 
-    const errorBox =
-      document.getElementById(
-        "error"
-      );
-
-    const empty =
-      document.getElementById(
-        "empty"
-      );
-
-    const loading =
-      document.getElementById(
-        "loading"
-      );
-
-    const dailyLoading =
-      document.getElementById(
-        "dailyLoading"
-      );
-
-    const grid =
-      document.getElementById(
-        "grid"
-      );
-
-    const resultsCount =
-      document.getElementById(
-        "resultsCount"
-      );
-
-
-    errorBox.classList.remove(
-      "show"
-    );
-
-    empty.classList.remove(
-      "show"
-    );
-
-    grid.innerHTML = "";
-
-    loading.classList.remove(
-      "show"
-    );
-
-    dailyLoading.classList.add(
-      "show"
-    );
-
-    resultsCount.textContent =
-      "Caçando ofertas...";
-
-
-    try {
-
-      const response =
-        await fetch(
-          "/api/ml_promocoes?categoria=" +
-          encodeURIComponent(
-            category
-          )
-        );
-
-
-      const data =
-        await response.json();
-
-
-      if (!response.ok) {
-
-        throw new Error(
-          data.error ||
-          "Erro ao encontrar ofertas."
-        );
-
-      }
-
-
-      currentProducts =
-        Array.isArray(
-          data.results
-        )
-          ? data.results
-          : [];
-
-
-      resultsCount.textContent =
-        currentProducts.length +
-        " oportunidades encontradas";
-
-      const refreshStatus =
-        document.getElementById("dailyRefreshStatus");
-
-      if (refreshStatus) {
-        const now = new Date();
-        const time = now.toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit"
-        });
-        refreshStatus.textContent =
-          "🔄 Atualizado às " + time + " • atualização automática a cada 30 min";
-      }
-
-
-      if (
-        !currentProducts.length
-      ) {
-
-        empty.textContent =
-          "Não encontramos oportunidades suficientes nessa categoria agora.";
-
-        empty.classList.add(
-          "show"
-        );
-
-        return;
-
-      }
-
-
-      renderProducts(
-        currentProducts
-      );
-
-
-      showToast(
-        "🔥 Ofertas encontradas!"
-      );
-
-
-    } catch (error) {
-
-      console.error(error);
-
-      errorBox.textContent =
-        "❌ " +
-        error.message;
-
-      errorBox.classList.add(
-        "show"
-      );
-
-      resultsCount.textContent =
-        "Erro nas promoções";
-
-    } finally {
-
-      dailyLoading.classList.remove(
-        "show"
-      );
-
+    dailyViewActive = true;
+    const refreshStatus = document.getElementById("dailyRefreshStatus");
+    if (refreshStatus) {
+      const time = new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+      refreshStatus.textContent = "🔄 " + category + " • atualizado às " + time +
+        " • nova busca automática em 30 min";
     }
-
   }
 
 
