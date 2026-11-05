@@ -1459,6 +1459,12 @@
     </div>
 
 
+    <div class="affiliate-box" style="border-color:#f0c36d">
+      <div class="affiliate-title">🛍️ Cadastrar oferta manualmente</div>
+      <div class="affiliate-help">Cadastre produtos da Amazon usando seu link de associado. As ofertas ficam salvas neste navegador.</div>
+      <button class="affiliate-open" type="button" onclick="openManualProductModal()">➕ CADASTRAR PRODUTO AMAZON</button>
+    </div>
+
     <div id="notice" class="notice"></div>    <div id="notice" class="notice"></div>
 
   </section>
@@ -1771,6 +1777,29 @@
       <button class="modal-close" onclick="closeFacebookGroups()">
         FECHAR
       </button>
+    </div>
+  </div>
+</div>
+<div id="manualProductModal" class="modal-backdrop" onclick="if(event.target===this) closeManualProductModal()">
+  <div class="affiliate-modal">
+    <h3>🛍️ Nova oferta Amazon</h3>
+    <div class="affiliate-step">Preencha os dados do produto e cole seu link de associado.</div>
+    <div class="group-form">
+      <input id="manualTitle" placeholder="Nome do produto *" maxlength="180">
+      <input id="manualPrice" type="number" min="0" step="0.01" placeholder="Preço atual (R$) *">
+      <input id="manualOriginalPrice" type="number" min="0" step="0.01" placeholder="Preço anterior (opcional)">
+      <input id="manualImage" type="url" placeholder="Link da imagem (opcional)">
+      <select id="manualCategory">
+        <option value="maternidade">Gestante e maternidade</option><option value="fraldas">Fraldas e higiene</option>
+        <option value="alimentacao">Alimentação</option><option value="passeio">Passeio e segurança</option>
+        <option value="quarto">Quarto e sono</option><option value="roupas">Roupas e calçados</option>
+        <option value="brinquedos">Brinquedos</option><option value="escolar">Infantil e escolar</option>
+      </select>
+      <input id="manualAffiliateLink" type="url" placeholder="Link de afiliado Amazon *">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-save" onclick="saveManualProduct()">💾 SALVAR OFERTA</button>
+      <button class="modal-close" onclick="closeManualProductModal()">CANCELAR</button>
     </div>
   </div>
 </div>
@@ -2149,6 +2178,57 @@
 
 
   // =========================================================
+  // OFERTAS MANUAIS AMAZON (armazenadas neste navegador)
+  const MANUAL_PRODUCTS_KEY = "radarBabyManualProducts";
+  function loadManualProducts() {
+    try {
+      const value = JSON.parse(localStorage.getItem(MANUAL_PRODUCTS_KEY) || "[]");
+      return Array.isArray(value) ? value : [];
+    } catch (error) { console.error(error); return []; }
+  }
+  function openManualProductModal() {
+    document.getElementById("manualProductModal").classList.add("show");
+  }
+  function closeManualProductModal() {
+    document.getElementById("manualProductModal").classList.remove("show");
+  }
+  function saveManualProduct() {
+    const title = document.getElementById("manualTitle").value.trim();
+    const price = Number(document.getElementById("manualPrice").value);
+    const original = Number(document.getElementById("manualOriginalPrice").value);
+    const image = document.getElementById("manualImage").value.trim();
+    const category = document.getElementById("manualCategory").value;
+    const link = document.getElementById("manualAffiliateLink").value.trim();
+    if (!title || !Number.isFinite(price) || price <= 0 || !link) {
+      showNotice("Preencha nome, preço atual e link de afiliado."); return;
+    }
+    try {
+      const parsed = new URL(link);
+      if (!/^https?:$/.test(parsed.protocol) || !/(amazon\\.|amzn\\.to)/i.test(parsed.hostname)) {
+        showNotice("Use um link válido da Amazon."); return;
+      }
+      if (image && !/^https?:$/.test(new URL(image).protocol)) throw new Error("Imagem inválida");
+    } catch (error) { showNotice("Confira o link do produto e o link da imagem."); return; }
+    const productId = "manual-amazon-" + Date.now();
+    const product = {
+      store:"amazon", id:productId, item_id:productId, title, price,
+      original_price:Number.isFinite(original) && original > price ? original : null,
+      image, category, permalink:link, affiliate_link:link, condition:"Novo",
+      score:50, manual:true
+    };
+    const products = loadManualProducts();
+    products.unshift(product);
+    try { localStorage.setItem(MANUAL_PRODUCTS_KEY, JSON.stringify(products)); }
+    catch (error) { showNotice("Não foi possível salvar no navegador."); return; }
+    ["manualTitle","manualPrice","manualOriginalPrice","manualImage","manualAffiliateLink"].forEach(id => document.getElementById(id).value = "");
+    closeManualProductModal();
+    currentProducts = [product, ...currentProducts];
+    renderProducts(currentProducts);
+    document.getElementById("resultsCount").textContent = currentProducts.length + " oferta(s), incluindo o novo produto manual.";
+    document.getElementById("empty").classList.remove("show");
+    showToast("Oferta Amazon salva no Radar Baby!");
+  }
+
   // BUSCA MANUAL
   // =========================================================
 
@@ -2219,6 +2299,13 @@
         if (result.status === "fulfilled") allResults.push(...result.value);
         else errors.push(result.reason?.message || "Uma das fontes não respondeu.");
       }
+
+      const manualProducts = loadManualProducts();
+      const normalizedQuery = query.toLocaleLowerCase("pt-BR");
+      allResults.push(...manualProducts.filter(product => {
+        const title = String(product.title || "").toLocaleLowerCase("pt-BR");
+        return title.includes(normalizedQuery) || normalizedQuery.split(/\\s+/).some(word => word.length > 2 && title.includes(word));
+      }));
 
       const seen = new Set();
       currentProducts = allResults.filter(product => {
