@@ -60,7 +60,8 @@ module.exports = async function(req, res) {
     const searchResponse = await fetch(searchUrl, {
       method: "GET",
       headers: {
-        Accept: "application/json"
+        Accept: "application/json",
+        Authorization: `Bearer ${sess.access_token}`
       }
     });
 
