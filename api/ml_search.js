@@ -5,7 +5,7 @@ async function getCategoryName(categoryId, token) {
   try {
     const response = await fetch(
       "https://api.mercadolibre.com/categories/" + encodeURIComponent(categoryId),
-      { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
+      { headers: { Accept: "application/json" } }
     );
     if (!response.ok) return null;
     const data = await response.json();
@@ -60,7 +60,6 @@ module.exports = async function(req, res) {
     const searchResponse = await fetch(searchUrl, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${sess.access_token}`,
         Accept: "application/json"
       }
     });
